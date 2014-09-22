@@ -2,23 +2,34 @@ package org.langera.slab;
 
 public interface SlabStorage {
 
-    boolean getBoolean(long address);
+    boolean getBoolean(final long address);
 
-    void setBoolean(boolean value, long address);
+    void setBoolean(final boolean value, final long address);
 
-    byte getByte(long address);
+    int getBooleanOffset();
 
-    void setByte(byte value, long address);
+    byte getByte(final long address);
 
-    int getInt(long address);
+    void setByte(final byte value, final long address);
 
-    void setInt(int value, long address);
+    int getByteOffset();
 
-    long getLong(long address);
+    int getInt(final long address);
 
-    void setLong(long value, long address);
+    void setInt(final int value, final long address);
 
-    int[] getIntArray(final int[] container, long address);
+    int getIntOffset();
 
-    void setIntArray(int[] value, long address);
+    long getLong(final long address);
+
+    void setLong(final long value, final long address);
+
+    int getLongOffset();
+
+    int[] getIntArray(final int[] container, final long address);
+
+    void setIntArray(final int[] value, final long address);
+
+    int getIntArrayOffset(final int arraySize);
+
 }

@@ -4,6 +4,8 @@ public interface SlabFlyweight<T> {
 
     void map(final SlabStorage storage, final long address);
 
+    void mapAddress(final long address);
+
     long getMappedAddress();
 
     void dumpToStorage(final T bean, final SlabStorage storage, final long address);

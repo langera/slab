@@ -13,6 +13,11 @@ class SimpleStorage implements SlabStorage {
     }
 
     @Override
+    int getBooleanOffset() {
+        return 0
+    }
+
+    @Override
     byte getByte(final long address) {
         return 0
     }
@@ -20,6 +25,11 @@ class SimpleStorage implements SlabStorage {
     @Override
     void setByte(final byte value, final long address) {
 
+    }
+
+    @Override
+    int getByteOffset() {
+        return 0
     }
 
     @Override
@@ -33,6 +43,11 @@ class SimpleStorage implements SlabStorage {
     }
 
     @Override
+    int getIntOffset() {
+        return 0
+    }
+
+    @Override
     long getLong(final long address) {
         return 0
     }
@@ -43,12 +58,22 @@ class SimpleStorage implements SlabStorage {
     }
 
     @Override
-    int[] getIntArray(int[] container, final long address) {
-        return container
+    int getLongOffset() {
+        return 0
+    }
+
+    @Override
+    int[] getIntArray(final int[] container, final long address) {
+        return new int[0]
     }
 
     @Override
     void setIntArray(final int[] value, final long address) {
 
+    }
+
+    @Override
+    int getIntArrayOffset(final int arraySize) {
+        return 0
     }
 }
