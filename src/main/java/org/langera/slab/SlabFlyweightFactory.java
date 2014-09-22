@@ -1,6 +1,6 @@
 package org.langera.slab;
 
-public interface SlabFlyweightFactory<F extends SlabFlyweight> {
+public interface SlabFlyweightFactory<T> {
 
-    F getInstance();
+    SlabFlyweight<T> getInstance();
 }

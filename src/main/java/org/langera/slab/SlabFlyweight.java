@@ -1,18 +1,20 @@
 package org.langera.slab;
 
-public interface SlabFlyweight<S> {
+public interface SlabFlyweight<T> {
 
-    void map(S storage, long address);
+    void map(final SlabStorage storage, final long address);
 
-    void advanceAddress();
+    long getMappedAddress();
 
-    void dumpToStorage();
+    void dumpToStorage(final T bean, final SlabStorage storage, final long address);
 
-    boolean isNull();
+    boolean isNull(final SlabStorage storage, final long address);
 
-    void setAsNull();
+    long getNextFreeAddress(final SlabStorage storage, final long address);
 
-    long getNextFreeAddress();
+    void setAsFreeAddress(final SlabStorage storage, final long address, final long nextFreeAddress);
 
-    void setAsFreeAddress(long nextFreeAddress);
+    void setAsNull(final SlabStorage storage, final long address);
+
+    int getStoredObjectSize();
 }
