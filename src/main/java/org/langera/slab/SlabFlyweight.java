@@ -16,7 +16,7 @@ public interface SlabFlyweight<T> {
 
     void setAsFreeAddress(final SlabStorage storage, final long address, final long nextFreeAddress);
 
-    void setAsNull(final SlabStorage storage, final long address);
+    int getStoredObjectSize(final SlabStorage storage);
 
-    int getStoredObjectSize();
+    T asBean();
 }

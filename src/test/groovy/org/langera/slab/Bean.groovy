@@ -8,6 +8,7 @@ public interface Bean {
     void setIntValue(int value)
     long getLongValue()
     void setLongValue(long value)
+    int[] getIntArrayValue()
     int[] getIntArrayValue(int[] container)
     void setIntArrayValue(int[] value)
 }

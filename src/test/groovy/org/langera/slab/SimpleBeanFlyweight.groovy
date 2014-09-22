@@ -42,16 +42,12 @@ class SimpleBeanFlyweight implements SlabFlyweight<Bean>, Bean {
 
     @Override
     void dumpToStorage(final Bean bean, final SlabStorage storage, final long address) {
-        if (bean == null) {
-            setAsNull(storage, address)
-        }
-        else {
-            removeNullFlag(storage, address)
-            storeByteValue(bean.getByteValue(), storage, address)
-            storeIntValue(bean.getIntValue(), storage, address)
-            storeLongValue(bean.getLongValue(), storage, address)
-            storeIntArrayValue(bean.getIntArrayValue(), storage, address)
-        }
+        long addressWithOffset = address
+        addressWithOffset = storage.setBoolean(false, addressWithOffset)
+        addressWithOffset = storage.setByte(bean.getByteValue(), addressWithOffset)
+        addressWithOffset = storage.setInt(bean.getIntValue(), addressWithOffset)
+        addressWithOffset = storage.setLong(bean.getLongValue(), addressWithOffset)
+        storage.setIntArray(bean.getIntArrayValue(), addressWithOffset)
     }
 
     @Override
@@ -61,7 +57,7 @@ class SimpleBeanFlyweight implements SlabFlyweight<Bean>, Bean {
 
     @Override
     void setByteValue(byte value) {
-        storeByteValue(value, storage, address)
+        storage.setByte(value, address + byteValueOffset)
     }
 
     @Override
@@ -71,7 +67,7 @@ class SimpleBeanFlyweight implements SlabFlyweight<Bean>, Bean {
 
     @Override
     void setIntValue(int value) {
-        storeIntValue(value, storage, address)
+        storage.setInt(value, address + intValueOffset)
     }
 
     @Override
@@ -81,7 +77,7 @@ class SimpleBeanFlyweight implements SlabFlyweight<Bean>, Bean {
 
     @Override
     void setLongValue(long value) {
-        storeLongValue(value, storage, address)
+        storage.setLong(value, address + longValueOffset)
     }
 
     int[] getIntArrayValue() {
@@ -96,12 +92,19 @@ class SimpleBeanFlyweight implements SlabFlyweight<Bean>, Bean {
 
     @Override
     void setIntArrayValue(int[] value) {
-        storeIntArrayValue(value, storage, address)
+        storage.setIntArray(value, address + intArrayValueOffset)
     }
 
     @Override
-    int getStoredObjectSize() {
-        return intArrayValueOffset + (intArrayFixedSize * 4)
+    Bean asBean() {
+        return this
+    }
+
+    @Override
+    int getStoredObjectSize(SlabStorage storage) {
+        return storage.booleanOffset + storage.byteOffset +
+                storage.intOffset + storage.longOffset +
+                (intArrayFixedSize * storage.intOffset)
     }
 
     @Override
@@ -111,37 +114,12 @@ class SimpleBeanFlyweight implements SlabFlyweight<Bean>, Bean {
 
     @Override
     long getNextFreeAddress(final SlabStorage storage, final long address) {
-        return storage.getLong(address + freeAddressOffset)
+        return storage.getLong(address + storage.booleanOffset)
     }
 
     @Override
     void setAsFreeAddress(final SlabStorage storage, final long address, final long nextFreeAddress) {
-        storage.setBoolean(true, address)
-        storage.setLong(nextFreeAddress, address + freeAddressOffset)
-    }
-
-    @Override
-    void setAsNull(final SlabStorage storage, final long address) {
-        setAsFreeAddress(storage, address, -1)
-    }
-
-    private removeNullFlag(final SlabStorage storage, final long address) {
-        storage.setBoolean(false, address)
-    }
-
-    private void storeByteValue(byte value, SlabStorage storage, long address) {
-        storage.setByte(value, address + byteValueOffset)
-    }
-
-    private void storeIntValue(int value, SlabStorage storage, long address) {
-        storage.setInt(value, address + intValueOffset)
-    }
-
-    private void storeLongValue(long value, SlabStorage storage, long address) {
-        storage.setLong(value, address + longValueOffset)
-    }
-
-    private void storeIntArrayValue(int[] value, SlabStorage storage, long address) {
-        storage.setIntArray(value, address + intArrayValueOffset)
+        long addressWithOffset = storage.setBoolean(true, address)
+        storage.setLong(nextFreeAddress, addressWithOffset)
     }
 }

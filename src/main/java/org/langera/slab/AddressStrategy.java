@@ -1,6 +1,6 @@
 package org.langera.slab;
 
-public interface AddressingStrategy {
+public interface AddressStrategy {
 
     long getKey(long address);
 
