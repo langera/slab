@@ -32,8 +32,9 @@ public final class Slab<T> implements Iterable<T> {
 
     public T get(final long address) {
         final SlabFlyweight<T> flyweight = factory.getInstance();
-        flyweight.map(storage, addressStrategy.getAddress(address));
-        return flyweight.isNull(storage, address) ? null : flyweight.asBean();
+        long realAddress = addressStrategy.getAddress(address);
+        flyweight.map(storage, realAddress);
+        return flyweight.isNull(storage, realAddress) ? null : flyweight.asBean();
     }
 
     public void remove(final long address) {
@@ -68,7 +69,7 @@ public final class Slab<T> implements Iterable<T> {
 
     @Override
     public Iterator<T> iterator() {
-        return new SlabIterator();
+        return new SlabIterator(Direction.FORWARD);
     }
 
     public long size() {
@@ -106,11 +107,56 @@ public final class Slab<T> implements Iterable<T> {
         }
     }
 
+    private enum Direction {
+        FORWARD {
+            @Override
+            long initialPtr(long storageSize, long objectSize) {
+                return -objectSize;
+            }
+
+            @Override
+            long advancePtr(final long objectSize) {
+                return objectSize;
+            }
+
+            @Override
+            boolean done(final long storageSize, final long ptr) {
+                return ptr < storageSize;
+            }
+        }, BACK {
+            @Override
+            long initialPtr(long storageSize, long objectSize) {
+                return storageSize;
+            }
+
+            @Override
+            long advancePtr(final long objectSize) {
+                return -objectSize;
+            }
+
+            @Override
+            boolean done(final long storageSize, final long ptr) {
+                return ptr >= 0;
+            }
+        };
+
+        abstract long initialPtr(long storageSize, long objectSize);
+
+        abstract long advancePtr(long objectSize);
+
+        abstract boolean done(long storageSize, long ptr);
+    }
+
     private class SlabIterator implements Iterator<T> {
 
+        private long ptr;
+        private long visited = 0;
+        private final Direction direction;
 
-        private int ptr = -objectSize;
-        private int visited = 0;
+        private SlabIterator(final Direction direction) {
+            this.direction = direction;
+            ptr = direction.initialPtr(storage.size(), objectSize);
+        }
 
         @Override
         public boolean hasNext() {
@@ -121,11 +167,11 @@ public final class Slab<T> implements Iterable<T> {
         @Override
         public T next() {
             visited++;
-            ptr += objectSize;
+            ptr += direction.advancePtr(objectSize);
             SlabFlyweight<T> flyweight = factory.getInstance();
             flyweight.map(storage, ptr);
-            while (ptr < storage.size() && flyweight.isNull(storage, ptr)) {
-                ptr += objectSize;
+            while (direction.done(storage.size(), ptr) && flyweight.isNull(storage, ptr)) {
+                ptr += direction.advancePtr(objectSize);
                 flyweight.map(storage, ptr);
             }
             return flyweight.asBean();

@@ -1,18 +1,17 @@
 package org.langera.slab
 
+import static java.lang.Math.max
+
 /**
  * A trivial storage backed by an Object List for testing
  */
 class SimpleStorage implements SlabStorage {
 
-    private List store
+    private int ptr = 0;
+    private Object[] store
 
-    SimpleStorage() {
-        this([])
-    }
-
-    SimpleStorage(final List store) {
-        this.store = store
+    SimpleStorage(final int capacity) {
+        this.store = new Object[capacity]
     }
 
     @Override
@@ -23,7 +22,9 @@ class SimpleStorage implements SlabStorage {
     @Override
     long setBoolean(final boolean value, final long address) {
         store[(int) address] = value
-        return address + booleanOffset
+        final long nextAddress = address + booleanOffset
+        ptr = max(ptr, nextAddress)
+        return nextAddress
     }
 
     @Override
@@ -39,7 +40,9 @@ class SimpleStorage implements SlabStorage {
     @Override
     long setByte(final byte value, final long address) {
         store[(int) address] = value
-        return address + byteOffset
+        final long nextAddress = address + byteOffset
+        ptr = max(ptr, nextAddress)
+        return nextAddress
     }
 
     @Override
@@ -55,7 +58,9 @@ class SimpleStorage implements SlabStorage {
     @Override
     long setInt(final int value, final long address) {
         store[(int) address] = value
-        return address + intOffset
+        final long nextAddress = address + intOffset
+        ptr = max(ptr, nextAddress)
+        return nextAddress
     }
 
     @Override
@@ -71,7 +76,9 @@ class SimpleStorage implements SlabStorage {
     @Override
     long setLong(final long value, final long address) {
         store[(int) address] = value
-        return address + longOffset
+        final long nextAddress = address + longOffset
+        ptr = max(ptr, nextAddress)
+        return nextAddress
     }
 
     @Override
@@ -92,7 +99,9 @@ class SimpleStorage implements SlabStorage {
         for (int i = 0; i < value.length; i++) {
             store[(int) address + i] = value[i]
         }
-        return address + (value.length * intOffset)
+        final long nextAddress = address + (value.length * intOffset)
+        ptr = max(ptr, nextAddress)
+        return nextAddress
     }
 
     @Override
@@ -102,18 +111,29 @@ class SimpleStorage implements SlabStorage {
 
     @Override
     long getFirstAvailableAddress() {
-        return store.size()
+        return ptr;
     }
 
     @Override
     long size() {
-        return store.size()
+        return store.length
     }
 
     @Override
     void remove(final long address, final int objectSize) {
         for (int i = objectSize - 1; i >= 0; i--) {
-            store.remove((int)(address + i))
+            store[(int)(address + i)] = null
         }
+        ptr = max(ptr, address)
+    }
+
+    @Override
+    void freeStorage() {
+        store = new Object[0];
+    }
+
+    @Override
+    String toString() {
+        Arrays.toString(store)
     }
 }

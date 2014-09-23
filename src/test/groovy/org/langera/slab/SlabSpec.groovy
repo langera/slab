@@ -23,7 +23,7 @@ class SlabSpec extends Specification {
 
 
     def setup() {
-        storage = new SimpleStorage()
+        storage = new SimpleStorage(35) // capacity - 4 objects
         addressStrategy = Mock()
         bean = new SimpleBean([byteValue: 17, intValue: 19, longValue: 23L, intArrayValue: [29, 31, 37]])
         slab = new Slab<Bean>(storage, addressStrategy, factory)
@@ -68,24 +68,28 @@ class SlabSpec extends Specification {
         retrieved.intArrayValue == bean.intArrayValue
     }
 
-    def 'move item inside slab'() {
+    def 'compact item inside slab'() {
     given:
         slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
         Bean toMove = new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]])
         slab.add(bean)
         long keyToRemove = slab.add(bean)
         long keyToMove = slab.add(toMove)
+    when:
         slab.remove(keyToRemove)
+    then:
+        slab.size() == 2
+        slab.availableCapacity() == 3
     when:
         long newKeyForMovedItem = slab.compact(keyToMove)
     then:
-        newKeyForMovedItem == keyToRemove
         slab.size() == 2
-        slab.availableCapacity() == 0
+        slab.availableCapacity() == 3
+        newKeyForMovedItem == keyToRemove
         slab.get(newKeyForMovedItem).byteValue == 1
     }
 
-    def 'move item inside slab maps old key to new address'() {
+    def 'compact item inside slab maps old key to new address'() {
     given:
         addressStrategy.getKey(_) >> { params -> return params[0] }
         addressStrategy.removeAddress(_) >> { params -> return params[0] }
@@ -110,31 +114,37 @@ class SlabSpec extends Specification {
         slab.availableCapacity() == expected
     where:
         slabStorage | expected
-        new SimpleStorage([])                                             | 0
-        new SimpleStorage([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]) | 2
+        new SimpleStorage(7)  | 1
+        new SimpleStorage(14) | 2
         // 7 is size of Bean (1 + 1 + 1 + 1 + (3 * 1))
     }
 
     def 'storage moved into a free list increases capacity'() {
     given:
         slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
+    when:
         long key1 = slab.add(bean)
         long key2 = slab.add(bean)
+    then:
+        slab.availableCapacity() == 3
     when:
         slab.remove(key1)
     then:
-        slab.availableCapacity() == 1
+        slab.availableCapacity() == 4
     }
 
-    def 'storage removed from edge does not increase capacity'() {
+    def 'storage removed from edge increase capacity'() {
     given:
         slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
+    when:
         long key1 = slab.add(bean)
         long key2 = slab.add(bean)
+    then:
+        slab.availableCapacity() == 3
     when:
         slab.remove(key2)
     then:
-        slab.availableCapacity() == 0
+        slab.availableCapacity() == 4
     }
 
     def 'cannot add null to slab'() {
