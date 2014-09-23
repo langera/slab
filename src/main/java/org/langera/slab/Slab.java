@@ -1,8 +1,6 @@
 package org.langera.slab;
 
 import java.util.Iterator;
-import java.util.Spliterator;
-import java.util.function.Consumer;
 
 
 // slab becomes a class which forces:
@@ -27,6 +25,7 @@ public final class Slab<T> implements Iterable<T> {
     private final AddressStrategy addressStrategy;
     private final CompactionStrategy compactionStrategy;
     private final SlabFlyweightFactory<T> factory;
+    private final int objectSize;
 
     private long size = 0;
     private long freeListIndex = -1;
@@ -39,6 +38,7 @@ public final class Slab<T> implements Iterable<T> {
         this.addressStrategy = addressStrategy;
         this.compactionStrategy = compactionStrategy;
         this.factory = factory;
+        this.objectSize = factory.getInstance().getStoredObjectSize(storage);
     }
 
     public long add(final T instance) {
@@ -63,7 +63,6 @@ public final class Slab<T> implements Iterable<T> {
             throw new ArrayIndexOutOfBoundsException("Address does not exist [" + address + "]");
         } else {
             size--;
-            int objectSize = flyweight.getStoredObjectSize(storage);
             if (toUse == storage.getFirstAvailableAddress() - objectSize) {
                 storage.remove(toUse, objectSize);
             } else {
@@ -79,19 +78,7 @@ public final class Slab<T> implements Iterable<T> {
 
     @Override
     public Iterator<T> iterator() {
-        // TODO
-        return null;
-    }
-
-    @Override
-    public void forEach(final Consumer<? super T> action) {
-        // TODO
-    }
-
-    @Override
-    public Spliterator<T> spliterator() {
-        // TODO
-        return null;
+        return new SlabIterator();
     }
 
     public long size() {
@@ -99,8 +86,7 @@ public final class Slab<T> implements Iterable<T> {
     }
 
     public long availableCapacity() {
-        SlabFlyweight<T> flyweight = factory.getInstance();
-        return (storage.size() / flyweight.getStoredObjectSize(storage)) - size;
+        return (storage.size() / objectSize) - size;
     }
 
     private long addToFreeEntry(final T instance) {
@@ -115,5 +101,36 @@ public final class Slab<T> implements Iterable<T> {
         final long newAddress = storage.getFirstAvailableAddress();
         factory.getInstance().dumpToStorage(instance, storage, newAddress);
         return newAddress;
+    }
+
+    private class SlabIterator implements Iterator<T> {
+
+
+        private int ptr = -objectSize;
+        private int visited = 0;
+
+        @Override
+        public boolean hasNext() {
+            return visited < size;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public T next() {
+            visited++;
+            ptr += objectSize;
+            SlabFlyweight<T> flyweight = factory.getInstance();
+            flyweight.map(storage, ptr);
+            while (ptr < storage.size() && flyweight.isNull(storage, ptr)) {
+                ptr += objectSize;
+                flyweight.map(storage, ptr);
+            }
+            return flyweight.asBean();
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException("remove from iterator unsupported");
+        }
     }
 }

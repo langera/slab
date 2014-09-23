@@ -28,12 +28,11 @@ class SlabSpec extends Specification {
         addressStrategy = Mock()
         compactionStrategy = Mock()
         bean = new SimpleBean([byteValue: 17, intValue: 19, longValue: 23L, intArrayValue: [29, 31, 37]])
+        slab = new Slab<Bean>(storage, addressStrategy, compactionStrategy, factory)
     }
 
 
     def 'add item to slab'() {
-    given:
-        slab = new Slab<Bean>(storage, addressStrategy, compactionStrategy, factory)
     when:
         long key = slab.add(bean)
     then:
@@ -44,7 +43,6 @@ class SlabSpec extends Specification {
 
     def 'remove item from slab'() {
     given:
-        slab = new Slab<Bean>(storage, addressStrategy, compactionStrategy, factory)
         long address
         addressStrategy.getKey(_) >> { params -> address = params[0]; return 1000 }
         long key = slab.add(bean)
@@ -57,7 +55,6 @@ class SlabSpec extends Specification {
 
     def 'get item from slab using #factory.class.simpleName'() {
     given:
-        slab = new Slab<Bean>(storage, addressStrategy, compactionStrategy, factory)
         long address
         addressStrategy.getKey(_) >> { params -> address = params[0]; return 1000 }
         long key = slab.add(bean)
@@ -111,8 +108,6 @@ class SlabSpec extends Specification {
     }
 
     def 'cannot add null to slab'() {
-    given:
-        slab = new Slab<Bean>(storage, addressStrategy, compactionStrategy, factory)
     when:
         slab.add(null)
     then:
@@ -132,8 +127,72 @@ class SlabSpec extends Specification {
         newKey == key2
     }
 
-    def 'compact a slab via strategy'() {
+    def 'iterates over items in slab using flyweight pattern'() {
+    given:
+        slab = new Slab<Bean>(storage, new DirectAddressStrategy(), compactionStrategy, factory)
+        slab.add(new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]]))
+        slab.add(new SimpleBean([byteValue: 2, intValue: 2, longValue: 2L, intArrayValue: [2, 2, 2]]))
+        slab.add(new SimpleBean([byteValue: 3, intValue: 3, longValue: 3L, intArrayValue: [3, 3, 3]]))
+    when:
+        List classes = []
+        List values = []
+        for (Bean b : slab) {
+            classes << b.class
+            values << b.byteValue
+        }
+    then:
+        classes.every { SlabFlyweight.isAssignableFrom(it) }
+        values == [ 1, 2, 3 ]
     }
+
+    def 'iterates over all items in a slab with gaps'() {
+    given:
+        slab = new Slab<Bean>(storage, new DirectAddressStrategy(), compactionStrategy, factory)
+        slab.add(new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]]))
+        long key = slab.add(new SimpleBean([byteValue: 2, intValue: 2, longValue: 2L, intArrayValue: [2, 2, 2]]))
+        slab.add(new SimpleBean([byteValue: 3, intValue: 3, longValue: 3L, intArrayValue: [3, 3, 3]]))
+        slab.remove(key)
+    when:
+        List values = []
+        for (Bean b : slab) {
+            values << b.byteValue
+        }
+    then:
+        values == [ 1, 3 ]
+    }
+
+    def 'iterates over all items in a slab with free entries at start'() {
+    given:
+        slab = new Slab<Bean>(storage, new DirectAddressStrategy(), compactionStrategy, factory)
+        long key = slab.add(new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]]))
+        slab.add(new SimpleBean([byteValue: 2, intValue: 2, longValue: 2L, intArrayValue: [2, 2, 2]]))
+        slab.add(new SimpleBean([byteValue: 3, intValue: 3, longValue: 3L, intArrayValue: [3, 3, 3]]))
+        slab.remove(key)
+    when:
+        List values = []
+        for (Bean b : slab) {
+            values << b.byteValue
+        }
+    then:
+        values == [ 2, 3 ]
+    }
+
+    def 'iterates over all items in a truncated slab'() {
+    given:
+        slab = new Slab<Bean>(storage, new DirectAddressStrategy(), compactionStrategy, factory)
+        slab.add(new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]]))
+        slab.add(new SimpleBean([byteValue: 2, intValue: 2, longValue: 2L, intArrayValue: [2, 2, 2]]))
+        long key = slab.add(new SimpleBean([byteValue: 3, intValue: 3, longValue: 3L, intArrayValue: [3, 3, 3]]))
+        slab.remove(key)
+    when:
+        List values = []
+        for (Bean b : slab) {
+            values << b.byteValue
+        }
+    then:
+        values == [ 1, 2 ]
+    }
+
 
     private static class NewInstanceFactory implements SlabFlyweightFactory<Bean> {
 
