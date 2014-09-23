@@ -8,14 +8,15 @@ import spock.lang.Unroll
 class SlabSpec extends Specification {
 
     private static final int FIXED_ARRAY_LENGTH = 3
+    public static final int STORAGE_CAPACITY = 5 * 7 // 7 = Bean object size
 
     @Shared
     SlabFlyweightFactory<Bean> newInstanceFactory = new NewInstanceFactory()
     @Shared
     SlabFlyweightFactory<Bean> singletonFactory = new SingletonSlabFlyweightFactory<>(new SimpleBeanFlyweight(FIXED_ARRAY_LENGTH))
-    SlabStorage storage
     AddressStrategy addressStrategy
     SlabFlyweightFactory<Bean> factory = singletonFactory
+    SlabStorageFactory<SimpleStorage> storageFactory
     Bean bean
 
     @Subject
@@ -23,10 +24,10 @@ class SlabSpec extends Specification {
 
 
     def setup() {
-        storage = new SimpleStorage(35) // capacity - 4 objects
         addressStrategy = Mock()
         bean = new SimpleBean([byteValue: 17, intValue: 19, longValue: 23L, intArrayValue: [29, 31, 37]])
-        slab = new Slab<Bean>(storage, addressStrategy, factory)
+        storageFactory = new SimpleStorageFactory()
+        slab = new Slab<Bean>(this.storageFactory, STORAGE_CAPACITY, addressStrategy, factory)
     }
 
 
@@ -70,7 +71,7 @@ class SlabSpec extends Specification {
 
     def 'compact item inside slab'() {
     given:
-        slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
+        slab = new Slab<Bean>(storageFactory, STORAGE_CAPACITY, new DirectAddressStrategy(), factory)
         Bean toMove = new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]])
         slab.add(bean)
         long keyToRemove = slab.add(bean)
@@ -107,21 +108,22 @@ class SlabSpec extends Specification {
     }
 
     @Unroll
-    def 'initial available capacity matches size of #slabStorage'() {
+    def 'initial available capacity is returned in units of "objectSize" for #bytesCapacity'() {
     when:
-        slab = new Slab<Bean>(slabStorage, new DirectAddressStrategy(), factory)
+        slab = new Slab<Bean>(storageFactory, bytesCapacity, new DirectAddressStrategy(), factory)
     then:
         slab.availableCapacity() == expected
     where:
-        slabStorage | expected
-        new SimpleStorage(7)  | 1
-        new SimpleStorage(14) | 2
+        bytesCapacity | expected
+        7  | 1
+        14 | 2
+        28 | 4
         // 7 is size of Bean (1 + 1 + 1 + 1 + (3 * 1))
     }
 
     def 'storage moved into a free list increases capacity'() {
     given:
-        slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
+        slab = new Slab<Bean>(storageFactory, STORAGE_CAPACITY, new DirectAddressStrategy(), factory)
     when:
         long key1 = slab.add(bean)
         long key2 = slab.add(bean)
@@ -135,7 +137,7 @@ class SlabSpec extends Specification {
 
     def 'storage removed from edge increase capacity'() {
     given:
-        slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
+        slab = new Slab<Bean>(storageFactory, STORAGE_CAPACITY, new DirectAddressStrategy(), factory)
     when:
         long key1 = slab.add(bean)
         long key2 = slab.add(bean)
@@ -156,7 +158,7 @@ class SlabSpec extends Specification {
 
     def 'add item to a free gap in the slab'() {
     given:
-        slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
+        slab = new Slab<Bean>(storageFactory, STORAGE_CAPACITY, new DirectAddressStrategy(), factory)
         long key1 = slab.add(bean)
         long key2 = slab.add(bean)
         long key3 = slab.add(bean)
@@ -170,7 +172,7 @@ class SlabSpec extends Specification {
     @Unroll
     def 'iterates over items in slab using flyweight pattern using flyweight #factory.class.simpleName'() {
     given:
-        slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
+        slab = new Slab<Bean>(storageFactory, STORAGE_CAPACITY, new DirectAddressStrategy(), factory)
         slab.add(new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]]))
         slab.add(new SimpleBean([byteValue: 2, intValue: 2, longValue: 2L, intArrayValue: [2, 2, 2]]))
         slab.add(new SimpleBean([byteValue: 3, intValue: 3, longValue: 3L, intArrayValue: [3, 3, 3]]))
@@ -191,7 +193,7 @@ class SlabSpec extends Specification {
     @Unroll
     def 'iterates over all items in a slab with gaps using flyweight #factory.class.simpleName'() {
     given:
-        slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
+        slab = new Slab<Bean>(storageFactory, STORAGE_CAPACITY, new DirectAddressStrategy(), factory)
         slab.add(new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]]))
         long key = slab.add(new SimpleBean([byteValue: 2, intValue: 2, longValue: 2L, intArrayValue: [2, 2, 2]]))
         slab.add(new SimpleBean([byteValue: 3, intValue: 3, longValue: 3L, intArrayValue: [3, 3, 3]]))
@@ -210,7 +212,7 @@ class SlabSpec extends Specification {
     @Unroll
     def 'iterates over all items in a slab with free entries at start using flyweight #factory.class.simpleName'() {
     given:
-        slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
+        slab = new Slab<Bean>(storageFactory, STORAGE_CAPACITY, new DirectAddressStrategy(), factory)
         long key = slab.add(new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]]))
         slab.add(new SimpleBean([byteValue: 2, intValue: 2, longValue: 2L, intArrayValue: [2, 2, 2]]))
         slab.add(new SimpleBean([byteValue: 3, intValue: 3, longValue: 3L, intArrayValue: [3, 3, 3]]))
@@ -229,7 +231,7 @@ class SlabSpec extends Specification {
     @Unroll
     def 'iterates over all items in a truncated slab using flyweight #factory.class.simpleName'() {
     given:
-        slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
+        slab = new Slab<Bean>(storageFactory, STORAGE_CAPACITY, new DirectAddressStrategy(), factory)
         slab.add(new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]]))
         slab.add(new SimpleBean([byteValue: 2, intValue: 2, longValue: 2L, intArrayValue: [2, 2, 2]]))
         long key = slab.add(new SimpleBean([byteValue: 3, intValue: 3, longValue: 3L, intArrayValue: [3, 3, 3]]))

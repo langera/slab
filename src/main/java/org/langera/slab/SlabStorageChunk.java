@@ -14,11 +14,19 @@ class SlabStorageChunk {
         return freeListIndex;
     }
 
+    void setFreeListIndex(final long freeListIndex) {
+        this.freeListIndex = freeListIndex;
+    }
+
     SlabStorage getStorage() {
         return storage;
     }
 
     void destory() {
         storage.freeStorage();
+    }
+
+    public boolean isAvailableCapacity() {
+        return freeListIndex > -1 || storage.getFirstAvailableAddress() < storage.size();
     }
 }
