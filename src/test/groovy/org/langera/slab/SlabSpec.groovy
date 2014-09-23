@@ -109,9 +109,10 @@ class SlabSpec extends Specification {
     then:
         slab.availableCapacity() == expected
     where:
-        slabStorage                                          | expected
-        new SimpleStorage([])                                | 0
-        new SimpleStorage([0,1,2,3,4,5,6,7,8,9,10,11,12,13]) | 2       // 7 is size of Bean (1 + 1 + 1 + 1 + (3 * 1))
+        slabStorage | expected
+        new SimpleStorage([])                                             | 0
+        new SimpleStorage([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]) | 2
+        // 7 is size of Bean (1 + 1 + 1 + 1 + (3 * 1))
     }
 
     def 'storage moved into a free list increases capacity'() {
@@ -156,7 +157,8 @@ class SlabSpec extends Specification {
         newKey == key2
     }
 
-    def 'iterates over items in slab using flyweight pattern'() {
+    @Unroll
+    def 'iterates over items in slab using flyweight pattern using flyweight #factory.class.simpleName'() {
     given:
         slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
         slab.add(new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]]))
@@ -171,10 +173,13 @@ class SlabSpec extends Specification {
         }
     then:
         classes.every { SlabFlyweight.isAssignableFrom(it) }
-        values == [ 1, 2, 3 ]
+        values == [1, 2, 3]
+    where:
+        factory << [singletonFactory, newInstanceFactory]
     }
 
-    def 'iterates over all items in a slab with gaps'() {
+    @Unroll
+    def 'iterates over all items in a slab with gaps using flyweight #factory.class.simpleName'() {
     given:
         slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
         slab.add(new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]]))
@@ -187,10 +192,13 @@ class SlabSpec extends Specification {
             values << b.byteValue
         }
     then:
-        values == [ 1, 3 ]
+        values == [1, 3]
+    where:
+        factory << [singletonFactory, newInstanceFactory]
     }
 
-    def 'iterates over all items in a slab with free entries at start'() {
+    @Unroll
+    def 'iterates over all items in a slab with free entries at start using flyweight #factory.class.simpleName'() {
     given:
         slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
         long key = slab.add(new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]]))
@@ -203,10 +211,13 @@ class SlabSpec extends Specification {
             values << b.byteValue
         }
     then:
-        values == [ 2, 3 ]
+        values == [2, 3]
+    where:
+        factory << [singletonFactory, newInstanceFactory]
     }
 
-    def 'iterates over all items in a truncated slab'() {
+    @Unroll
+    def 'iterates over all items in a truncated slab using flyweight #factory.class.simpleName'() {
     given:
         slab = new Slab<Bean>(storage, new DirectAddressStrategy(), factory)
         slab.add(new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]]))
@@ -219,7 +230,9 @@ class SlabSpec extends Specification {
             values << b.byteValue
         }
     then:
-        values == [ 1, 2 ]
+        values == [1, 2]
+    where:
+        factory << [singletonFactory, newInstanceFactory]
     }
 
 
