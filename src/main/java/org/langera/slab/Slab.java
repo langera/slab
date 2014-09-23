@@ -2,28 +2,10 @@ package org.langera.slab;
 
 import java.util.Iterator;
 
-
-// slab becomes a class which forces:
-
-// 1. chunks
-// 2. free list
-// 3. compaction via strategy
-
-// compaction logic in strategy uses storage
-
-// storage becomes an abstract entity (OffHeap, ByteArray, ObjectArray? etc.) - flyweight linked to storage
-
-
-// virtual memory added as a strategy as well
-
-
-// Specific Flyweights should be generated given "bean" interface
-
 public final class Slab<T> implements Iterable<T> {
 
     private final SlabStorage storage;
     private final AddressStrategy addressStrategy;
-    private final CompactionStrategy compactionStrategy;
     private final SlabFlyweightFactory<T> factory;
     private final int objectSize;
 
@@ -32,11 +14,9 @@ public final class Slab<T> implements Iterable<T> {
 
     public Slab(final SlabStorage storage,
                 final AddressStrategy addressStrategy,
-                final CompactionStrategy compactionStrategy,
                 final SlabFlyweightFactory<T> factory) {
         this.storage = storage;
         this.addressStrategy = addressStrategy;
-        this.compactionStrategy = compactionStrategy;
         this.factory = factory;
         this.objectSize = factory.getInstance().getStoredObjectSize(storage);
     }
@@ -46,7 +26,7 @@ public final class Slab<T> implements Iterable<T> {
             throw new IllegalArgumentException("Cannot add null");
         }
         size++;
-        long address = (freeListIndex < 0) ? addToLastIndex(instance) : addToFreeEntry(instance);
+        long address = addToStorage(instance);
         return addressStrategy.getKey(address);
     }
 
@@ -58,17 +38,27 @@ public final class Slab<T> implements Iterable<T> {
 
     public void remove(final long address) {
         final SlabFlyweight<T> flyweight = factory.getInstance();
-        long toUse = addressStrategy.getAddress(address);
-        if (flyweight.isNull(storage, toUse)) {
+        long realAddress = addressStrategy.removeAddress(address);
+        if (flyweight.isNull(storage, realAddress)) {
             throw new ArrayIndexOutOfBoundsException("Address does not exist [" + address + "]");
         } else {
             size--;
-            if (toUse == storage.getFirstAvailableAddress() - objectSize) {
-                storage.remove(toUse, objectSize);
-            } else {
-                flyweight.setAsFreeAddress(storage, toUse, freeListIndex);
-                freeListIndex = toUse;
-            }
+            removeFromStorage(flyweight, realAddress);
+        }
+    }
+
+    public long compact(final long address) {
+        final SlabFlyweight<T> flyweight = factory.getInstance();
+        long realAddress = addressStrategy.getAddress(address);
+        if (flyweight.isNull(storage, realAddress)) {
+            throw new ArrayIndexOutOfBoundsException("Address does not exist [" + address + "]");
+        } else {
+            flyweight.map(storage, realAddress);
+            T instance = flyweight.asBean();
+            long newAddress = addToStorage(instance);
+            long newKey = addressStrategy.map(address, newAddress);
+            removeFromStorage(flyweight, realAddress);
+            return newKey;
         }
     }
 
@@ -101,6 +91,19 @@ public final class Slab<T> implements Iterable<T> {
         final long newAddress = storage.getFirstAvailableAddress();
         factory.getInstance().dumpToStorage(instance, storage, newAddress);
         return newAddress;
+    }
+
+    private long addToStorage(final T instance) {
+        return (freeListIndex < 0) ? addToLastIndex(instance) : addToFreeEntry(instance);
+    }
+
+    private void removeFromStorage(final SlabFlyweight<T> flyweight, final long address) {
+        if (address == storage.getFirstAvailableAddress() - objectSize) {
+            storage.remove(address, objectSize);
+        } else {
+            flyweight.setAsFreeAddress(storage, address, freeListIndex);
+            freeListIndex = address;
+        }
     }
 
     private class SlabIterator implements Iterator<T> {

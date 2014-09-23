@@ -18,4 +18,14 @@ class DirectAddressStrategySpec extends Specification {
         19 == strategy.getAddress(19)
     }
 
+    def 'returned address on remove is same as key'() {
+    expect:
+        23 == strategy.removeAddress(23)
+    }
+
+    def 'map an existing key to a new address returns the new address'() {
+    expect:
+        31 == strategy.map(29, 31)
+    }
+
 }
