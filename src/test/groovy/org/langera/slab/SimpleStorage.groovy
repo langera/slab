@@ -115,16 +115,13 @@ class SimpleStorage implements SlabStorage {
     }
 
     @Override
-    long size() {
+    long capacity() {
         return store.length
     }
 
     @Override
     void remove(final long address, final int objectSize) {
-        for (int i = objectSize - 1; i >= 0; i--) {
-            store[(int)(address + i)] = null
-        }
-        ptr = max(ptr, address)
+        ptr = address
     }
 
     @Override

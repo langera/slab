@@ -109,7 +109,7 @@ class SimpleBeanFlyweight implements SlabFlyweight<Bean>, Bean {
 
     @Override
     boolean isNull(final SlabStorage storage, final long address) {
-        return storage.getBoolean(address)
+        return storage.getFirstAvailableAddress() <= address || storage.getBoolean(address)
     }
 
     @Override

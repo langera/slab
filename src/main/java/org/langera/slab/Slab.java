@@ -1,16 +1,18 @@
 package org.langera.slab;
 
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 public final class Slab<T> implements Iterable<T> {
 
-    private final SlabStorageChunk[] storageChunks;
+    public static final int INITIAL_CHUNKS_ARRAY_SIZE = 10;
     private final AddressStrategy addressStrategy;
     private final SlabFlyweightFactory<T> factory;
     private final int objectSize;
     private final long chunkSize;
     private final SlabStorageFactory storageFactory;
 
+    private SlabStorageChunk[] storageChunks;
     private int numberOfChunks;
     private long size = 0;
 
@@ -22,8 +24,8 @@ public final class Slab<T> implements Iterable<T> {
         this.chunkSize = chunkSize;
         this.addressStrategy = addressStrategy;
         this.factory = factory;
-        this.storageChunks = new SlabStorageChunk[10]; // TODO
-        this.storageChunks[0] = new SlabStorageChunk(storageFactory, chunkSize);
+        this.storageChunks = new SlabStorageChunk[INITIAL_CHUNKS_ARRAY_SIZE];
+        this.storageChunks[0] = new SlabStorageChunk(storageFactory, chunkSize, 0);
         this.numberOfChunks = 1;
         this.objectSize = factory.getInstance().getStoredObjectSize(storageChunks[0].getStorage());
     }
@@ -39,43 +41,39 @@ public final class Slab<T> implements Iterable<T> {
 
     public T get(final long address) {
         final SlabFlyweight<T> flyweight = factory.getInstance();
-        final long realAddress = addressStrategy.getAddress(address);
-        final SlabStorage storage = storageFor(realAddress).getStorage(); // TODO null check
+        long realAddress = addressStrategy.getAddress(address);
+        SlabStorageChunk chunk = storageFor(realAddress);
+        final SlabStorage storage = chunk.getStorage();
+        realAddress = chunk.noOffsetAddress(realAddress);
         flyweight.map(storage, realAddress);
         return flyweight.isNull(storage, realAddress) ? null : flyweight.asBean();
     }
 
     public void remove(final long address) {
         final SlabFlyweight<T> flyweight = factory.getInstance();
-        final long realAddress = addressStrategy.removeAddress(address);
-        final SlabStorageChunk storage = storageFor(realAddress);
-        if (flyweight.isNull(storage.getStorage(), realAddress)) {  // TODO null check
+        long realAddress = addressStrategy.removeAddress(address);
+        final SlabStorageChunk chunk = storageFor(realAddress);
+        realAddress = chunk.noOffsetAddress(realAddress);
+        if (flyweight.isNull(chunk.getStorage(), realAddress)) {
             throw new ArrayIndexOutOfBoundsException("Address does not exist [" + address + "]");
         } else {
             size--;
-            removeFromStorage(storage, flyweight, realAddress);
-        }
-    }
-
-    public long compact(final long address) {
-        final SlabFlyweight<T> flyweight = factory.getInstance();
-        final long realAddress = addressStrategy.getAddress(address);
-        final SlabStorageChunk chunk = storageFor(realAddress);  // TODO null check
-        final SlabStorage storage = chunk.getStorage();
-        if (flyweight.isNull(storage, realAddress)) {
-            throw new ArrayIndexOutOfBoundsException("Address does not exist [" + address + "]");
-        } else {
-            flyweight.map(storage, realAddress);
-            T instance = flyweight.asBean();
-            long newAddress = addToStorage(instance);
-            long newKey = addressStrategy.map(address, newAddress);
+            chunk.decrementSize();
             removeFromStorage(chunk, flyweight, realAddress);
-            return newKey;
         }
     }
 
     public void compact() {
-        // TODO
+        SlabStorageChunk lastChunk = storageChunks[numberOfChunks - 1];
+        Iterator<SlabFlyweight<T>> iterator = new StorageChunkIterator(lastChunk, Direction.BACK);
+        while (iterator.hasNext() && canCompactToPreviousChunks(lastChunk)) {
+            compact(lastChunk, iterator.next());
+        }
+        if (lastChunk.size() == 0) {
+            lastChunk.destory();
+            storageChunks[--numberOfChunks] = null;
+            compact();
+        }
     }
 
     @Override
@@ -91,17 +89,39 @@ public final class Slab<T> implements Iterable<T> {
         return (numberOfChunks * chunkSize / objectSize) - size;
     }
 
+    private boolean canCompactToPreviousChunks(final SlabStorageChunk lastChunk) {
+        return numberOfChunks > 1 && size - lastChunk.size() < ((numberOfChunks - 1) * chunkSize / objectSize);
+    }
+
+    private void compact(final SlabStorageChunk chunk, final SlabFlyweight<T> flyweight) {
+        long newAddress = addToStorage(flyweight.asBean());
+        addressStrategy.map(chunk.offsetAddress(flyweight.getMappedAddress()), newAddress);
+        chunk.decrementSize();
+        removeFromStorage(chunk, flyweight, flyweight.getMappedAddress());
+    }
+
     private SlabStorageChunk storageFor(final long address) {
-        return storageChunks[(int) (address / chunkSize)];
+        int index = (int) (address / chunkSize);
+        if (index >= storageChunks.length || storageChunks[index] == null) {
+            throw new ArrayIndexOutOfBoundsException("Address does not exist [" + address + "]");
+        }
+        return storageChunks[index];
     }
 
     private SlabStorageChunk availableStorage() {
-        for (SlabStorageChunk chunk : storageChunks) {
-            if (chunk.isAvailableCapacity()) {
-                return chunk;
+        for (int i = 0; i < numberOfChunks; i++) {
+            if (storageChunks[i].isAvailableCapacity()) {
+                return storageChunks[i];
             }
         }
-        return null;
+        SlabStorageChunk newChunk = new SlabStorageChunk(storageFactory, chunkSize, chunkSize * numberOfChunks);
+        if (numberOfChunks == storageChunks.length) {
+            SlabStorageChunk[] newChunksContainer = new SlabStorageChunk[storageChunks.length + INITIAL_CHUNKS_ARRAY_SIZE];
+            System.arraycopy(storageChunks, 0, newChunksContainer, 0, storageChunks.length);
+            storageChunks = newChunksContainer;
+        }
+        storageChunks[numberOfChunks++] = newChunk;
+        return newChunk;
     }
 
     private long addToFreeEntry(final T instance, final SlabStorageChunk chunk) {
@@ -110,18 +130,19 @@ public final class Slab<T> implements Iterable<T> {
         long newAddress = chunk.getFreeListIndex();
         chunk.setFreeListIndex(flyweight.getNextFreeAddress(storage, newAddress));
         flyweight.dumpToStorage(instance, storage, newAddress);
-        return newAddress;
+        return chunk.offsetAddress(newAddress);
     }
 
     private long addToLastIndex(final T instance, final SlabStorageChunk chunk) {
         final SlabStorage storage = chunk.getStorage();
         final long newAddress = storage.getFirstAvailableAddress();
         factory.getInstance().dumpToStorage(instance, storage, newAddress);
-        return newAddress;
+        return chunk.offsetAddress(newAddress);
     }
 
     private long addToStorage(final T instance) {
         SlabStorageChunk chunk = availableStorage();
+        chunk.incrementSize();
         return (chunk.getFreeListIndex() < 0) ? addToLastIndex(instance, chunk) : addToFreeEntry(instance, chunk);
     }
 
@@ -138,7 +159,7 @@ public final class Slab<T> implements Iterable<T> {
     private enum Direction {
         FORWARD {
             @Override
-            long initialPtr(long storageSize, long objectSize) {
+            long initialPtr(SlabStorage storage, long objectSize) {
                 return -objectSize;
             }
 
@@ -148,13 +169,13 @@ public final class Slab<T> implements Iterable<T> {
             }
 
             @Override
-            boolean done(final long storageSize, final long ptr) {
-                return ptr < storageSize;
+            boolean done(final SlabStorage storage, final long ptr) {
+                return ptr >= storage.getFirstAvailableAddress();
             }
         }, BACK {
             @Override
-            long initialPtr(long storageSize, long objectSize) {
-                return storageSize;
+            long initialPtr(SlabStorage storage, long objectSize) {
+                return storage.getFirstAvailableAddress();
             }
 
             @Override
@@ -163,62 +184,80 @@ public final class Slab<T> implements Iterable<T> {
             }
 
             @Override
-            boolean done(final long storageSize, final long ptr) {
-                return ptr >= 0;
+            boolean done(final SlabStorage storage, final long ptr) {
+                return ptr < 0;
             }
         };
 
-        abstract long initialPtr(long storageSize, long objectSize);
+        abstract long initialPtr(SlabStorage storage, long objectSize);
 
         abstract long advancePtr(long objectSize);
 
-        abstract boolean done(long storageSize, long ptr);
+        abstract boolean done(SlabStorage storage, long ptr);
     }
 
     private class SlabIterator implements Iterator<T> {
 
+        private long iterationCounter = size;
         private final Direction direction;
-        private long ptr;
-        private long visited = 0;
         private int chunkPtr = 0;
-        private SlabStorage storage;
+        private StorageChunkIterator currentIterator;
 
         private SlabIterator(final Direction direction) {
             this.direction = direction;
-            this.storage = storageChunks[chunkPtr].getStorage();
-            ptr = direction.initialPtr(storage.size(), objectSize);
+            currentIterator = new StorageChunkIterator(storageChunks[0], direction);
         }
 
         @Override
         public boolean hasNext() {
-            return visited < size;
+            return iterationCounter > 0;
+        }
+
+        @Override
+        public T next() {
+            if (currentIterator.hasNext()) {
+                iterationCounter--;
+                return currentIterator.next().asBean();
+            }
+            if (++chunkPtr >= numberOfChunks) {
+                throw new NoSuchElementException("Already iterated over [" + iterationCounter + "] elements");
+            }
+            currentIterator = new StorageChunkIterator(storageChunks[chunkPtr], direction);
+            return next();
+        }
+    }
+
+    private class StorageChunkIterator implements Iterator<SlabFlyweight<T>> {
+
+        private long iterationCounter;
+        private long ptr;
+        private final Direction direction;
+        private final SlabStorage storage;
+
+        private StorageChunkIterator(final SlabStorageChunk chunk, final Direction direction) {
+            this.storage = chunk.getStorage();
+            this.direction = direction;
+            ptr = direction.initialPtr(storage, objectSize);
+            iterationCounter = chunk.size();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return iterationCounter > 0;
         }
 
         @SuppressWarnings("unchecked")
         @Override
-        public T next() {
-            visited++;
-            advancePtr();
+        public SlabFlyweight<T> next() {
+            ptr += direction.advancePtr(objectSize);
             SlabFlyweight<T> flyweight = factory.getInstance();
             flyweight.map(storage, ptr);
-            while (direction.done(storage.size(), ptr) && flyweight.isNull(storage, ptr)) {
-                advancePtr();
+            while (!direction.done(storage, ptr) && flyweight.isNull(storage, ptr)) {
+                ptr += direction.advancePtr(objectSize);
                 flyweight.map(storage, ptr);
             }
-            return flyweight.asBean();
-        }
-
-        private void advancePtr() {
-            ptr += direction.advancePtr(objectSize);
-            if (ptr == chunkSize) {
-                this.storage = storageChunks[++chunkPtr].getStorage();  // TODO null
-                ptr = direction.initialPtr(storage.size(), objectSize);
-            }
-        }
-
-        @Override
-        public void remove() {
-            throw new UnsupportedOperationException("remove from iterator unsupported");
+            iterationCounter--;
+            return flyweight;
         }
     }
 }

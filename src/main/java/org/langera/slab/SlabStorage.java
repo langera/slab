@@ -34,7 +34,7 @@ public interface SlabStorage {
 
     long getFirstAvailableAddress();
 
-    long size();
+    long capacity();
 
     void remove(long address, int objectSize);
 
