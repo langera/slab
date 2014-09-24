@@ -1,4 +1,7 @@
-package org.langera.slab
+package org.langera.slab.stub
+
+import org.langera.slab.SlabFlyweight
+import org.langera.slab.SlabStorage
 
 class SimpleBeanFlyweight implements SlabFlyweight<Bean>, Bean {
 

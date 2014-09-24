@@ -1,6 +1,9 @@
-package org.langera.slab;
+package org.langera.slab.flyweight;
 
-public class ThreadLocalSlabFlyweightFactory<T> implements SlabFlyweightFactory<T> {
+import org.langera.slab.SlabFlyweight;
+import org.langera.slab.SlabFlyweightFactory;
+
+public final class ThreadLocalSlabFlyweightFactory<T> implements SlabFlyweightFactory<T> {
 
     private final ThreadLocal<SlabFlyweight<T>> threadLocal;
 

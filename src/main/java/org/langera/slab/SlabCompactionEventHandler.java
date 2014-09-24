@@ -2,7 +2,7 @@ package org.langera.slab;
 
 public interface SlabCompactionEventHandler {
 
-    void beforeCompactionMove(long oldAddress);
+    void beforeCompactionMove(final long oldAddress);
 
-    void afterCompactionMove(long oldAddress, long newAddress);
+    void afterCompactionMove(final long oldAddress, final long newAddress);
 }

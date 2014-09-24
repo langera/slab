@@ -1,4 +1,4 @@
-package org.langera.slab
+package org.langera.slab.stub
 
 public interface Bean {
 

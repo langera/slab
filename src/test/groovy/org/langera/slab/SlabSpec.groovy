@@ -1,5 +1,7 @@
 package org.langera.slab
 
+import org.langera.slab.flyweight.SingletonSlabFlyweightFactory
+import org.langera.slab.stub.*
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Subject

@@ -1,4 +1,6 @@
-package org.langera.slab
+package org.langera.slab.stub
+
+import org.langera.slab.SlabStorage
 
 import static java.lang.Math.max
 

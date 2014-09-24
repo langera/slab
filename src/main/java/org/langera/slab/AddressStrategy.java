@@ -2,11 +2,11 @@ package org.langera.slab;
 
 public interface AddressStrategy {
 
-    long getKey(long address);
+    long getKey(final long address);
 
-    long getAddress(long key);
+    long getAddress(final long key);
 
-    long removeAddress(long key);
+    long removeAddress(final long key);
 
-    long map(long existingKey, long newAddress);
+    long map(final long existingKey, final long newAddress);
 }

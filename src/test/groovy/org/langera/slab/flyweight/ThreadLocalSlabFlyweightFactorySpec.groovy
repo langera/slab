@@ -1,5 +1,7 @@
-package org.langera.slab
+package org.langera.slab.flyweight
 
+import org.langera.slab.SlabFlyweight
+import org.langera.slab.SlabFlyweightFactory
 import spock.lang.Specification
 import spock.lang.Subject
 
