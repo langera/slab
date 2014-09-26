@@ -122,7 +122,7 @@ class SimpleStorage implements SlabStorage {
     }
 
     @Override
-    void remove(final long address, final int objectSize) {
+    void setFirstAvailableAddress(final long address) {
         ptr = address
     }
 

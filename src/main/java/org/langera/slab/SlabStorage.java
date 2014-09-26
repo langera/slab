@@ -36,7 +36,7 @@ public interface SlabStorage {
 
     long capacity();
 
-    void remove(long address, int objectSize);
+    void setFirstAvailableAddress(long address);
 
     void freeStorage();
 }

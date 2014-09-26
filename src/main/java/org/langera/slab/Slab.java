@@ -149,7 +149,7 @@ public final class Slab<T> implements Iterable<T> {
     private void removeFromStorage(final SlabStorageChunk chunk, final SlabFlyweight<T> flyweight, final long address) {
         final SlabStorage storage = chunk.getStorage();
         if (address == storage.getFirstAvailableAddress() - objectSize) {
-            storage.remove(address, objectSize);
+            storage.setFirstAvailableAddress(address);
         } else {
             flyweight.setAsFreeAddress(storage, address, chunk.getFreeListIndex());
             chunk.setFreeListIndex(address);
