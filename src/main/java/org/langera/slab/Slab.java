@@ -1,6 +1,8 @@
 package org.langera.slab;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 public final class Slab<T> implements Iterable<T> {
@@ -12,8 +14,7 @@ public final class Slab<T> implements Iterable<T> {
     private final long chunkSize;
     private final SlabStorageFactory storageFactory;
 
-    private SlabStorageChunk[] storageChunks;
-    private int numberOfChunks;
+    private List<SlabStorageChunk> storageChunks;
     private long size = 0;
 
     public Slab(final SlabStorageFactory storageFactory,
@@ -24,10 +25,9 @@ public final class Slab<T> implements Iterable<T> {
         this.chunkSize = chunkSize;
         this.addressStrategy = addressStrategy;
         this.factory = factory;
-        this.storageChunks = new SlabStorageChunk[INITIAL_CHUNKS_ARRAY_SIZE];
-        this.storageChunks[0] = new SlabStorageChunk(storageFactory, chunkSize, 0);
-        this.numberOfChunks = 1;
-        this.objectSize = factory.getInstance().getStoredObjectSize(storageChunks[0].getStorage());
+        this.storageChunks = new ArrayList<>(INITIAL_CHUNKS_ARRAY_SIZE);
+        this.storageChunks.add(new SlabStorageChunk(storageFactory, chunkSize, 0));
+        this.objectSize = factory.getInstance().getStoredObjectSize(storageChunks.get(0).getStorage());
     }
 
     public long add(final T instance) {
@@ -57,21 +57,21 @@ public final class Slab<T> implements Iterable<T> {
         if (flyweight.isNull(chunk.getStorage(), realAddress)) {
             throw new ArrayIndexOutOfBoundsException("Address does not exist [" + address + "]");
         } else {
-            size--;
             chunk.decrementSize();
             removeFromStorage(chunk, flyweight, realAddress);
+            size--;
         }
     }
 
     public void compact() {
-        SlabStorageChunk lastChunk = storageChunks[numberOfChunks - 1];
+        SlabStorageChunk lastChunk = storageChunks.get(storageChunks.size() - 1);
         Iterator<SlabFlyweight<T>> iterator = new StorageChunkIterator(lastChunk, Direction.BACK);
         while (iterator.hasNext() && canCompactToPreviousChunks(lastChunk)) {
             compact(lastChunk, iterator.next());
         }
         if (lastChunk.size() == 0) {
             lastChunk.destroy();
-            storageChunks[--numberOfChunks] = null;
+            storageChunks.remove(lastChunk);
             compact();
         }
     }
@@ -86,11 +86,11 @@ public final class Slab<T> implements Iterable<T> {
     }
 
     public long availableCapacity() {
-        return (numberOfChunks * chunkSize / objectSize) - size;
+        return (storageChunks.size() * chunkSize / objectSize) - size;
     }
 
     private boolean canCompactToPreviousChunks(final SlabStorageChunk lastChunk) {
-        return numberOfChunks > 1 && size - lastChunk.size() < ((numberOfChunks - 1) * chunkSize / objectSize);
+        return storageChunks.size() > 1 && size - lastChunk.size() < ((storageChunks.size() - 1) * chunkSize / objectSize);
     }
 
     private void compact(final SlabStorageChunk chunk, final SlabFlyweight<T> flyweight) {
@@ -102,25 +102,20 @@ public final class Slab<T> implements Iterable<T> {
 
     private SlabStorageChunk storageFor(final long address) {
         int index = (int) (address / chunkSize);
-        if (index >= storageChunks.length || storageChunks[index] == null) {
+        if (index >= storageChunks.size() || storageChunks.get(index) == null) {
             throw new ArrayIndexOutOfBoundsException("Address does not exist [" + address + "]");
         }
-        return storageChunks[index];
+        return storageChunks.get(index);
     }
 
     private SlabStorageChunk availableStorage() {
-        for (int i = 0; i < numberOfChunks; i++) {
-            if (storageChunks[i].isAvailableCapacity()) {
-                return storageChunks[i];
+        for (SlabStorageChunk chunk : storageChunks) {
+            if (chunk.isAvailableCapacity()) {
+                return chunk;
             }
         }
-        SlabStorageChunk newChunk = new SlabStorageChunk(storageFactory, chunkSize, chunkSize * numberOfChunks);
-        if (numberOfChunks == storageChunks.length) {
-            SlabStorageChunk[] newChunksContainer = new SlabStorageChunk[storageChunks.length + INITIAL_CHUNKS_ARRAY_SIZE];
-            System.arraycopy(storageChunks, 0, newChunksContainer, 0, storageChunks.length);
-            storageChunks = newChunksContainer;
-        }
-        storageChunks[numberOfChunks++] = newChunk;
+        SlabStorageChunk newChunk = new SlabStorageChunk(storageFactory, chunkSize, chunkSize * storageChunks.size());
+        storageChunks.add(newChunk);
         return newChunk;
     }
 
@@ -205,7 +200,7 @@ public final class Slab<T> implements Iterable<T> {
 
         private SlabIterator(final Direction direction) {
             this.direction = direction;
-            currentIterator = new StorageChunkIterator(storageChunks[0], direction);
+            currentIterator = new StorageChunkIterator(storageChunks.get(0), direction);
         }
 
         @Override
@@ -219,10 +214,10 @@ public final class Slab<T> implements Iterable<T> {
                 iterationCounter--;
                 return currentIterator.next().asBean();
             }
-            if (++chunkPtr >= numberOfChunks) {
+            if (++chunkPtr >= storageChunks.size()) {
                 throw new NoSuchElementException("Already iterated over [" + iterationCounter + "] elements");
             }
-            currentIterator = new StorageChunkIterator(storageChunks[chunkPtr], direction);
+            currentIterator = new StorageChunkIterator(storageChunks.get(chunkPtr), direction);
             return next();
         }
     }
@@ -265,6 +260,7 @@ public final class Slab<T> implements Iterable<T> {
 
         private final long offset;
         private final SlabStorage storage;
+
         private long size;
         private long freeListIndex;
 
