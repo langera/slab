@@ -8,6 +8,8 @@ public interface SlabFlyweight<T> {
 
     long getMappedAddress();
 
+    boolean isNull();
+
     void dumpToStorage(final T bean, final SlabStorage storage, final long address);
 
     boolean isNull(final SlabStorage storage, final long address);
@@ -19,4 +21,5 @@ public interface SlabFlyweight<T> {
     int getStoredObjectSize(final SlabStorage storage);
 
     T asBean();
+
 }

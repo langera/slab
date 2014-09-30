@@ -44,6 +44,11 @@ class SimpleBeanFlyweight implements SlabFlyweight<Bean>, Bean {
     }
 
     @Override
+    boolean isNull() {
+        return isNull(storage, address)
+    }
+
+    @Override
     void dumpToStorage(final Bean bean, final SlabStorage storage, final long address) {
         long addressWithOffset = address
         addressWithOffset = storage.setBoolean(false, addressWithOffset)

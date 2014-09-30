@@ -46,7 +46,7 @@ public final class Slab<T> implements Iterable<T> {
         realAddress = chunk.noOffsetAddress(realAddress);
         final SlabStorage storage = chunk.getStorage();
         flyweight.map(storage, realAddress);
-        return chunk.getFirstAvailableAddress() <= realAddress || flyweight.isNull(storage, realAddress) ? null : flyweight.asBean();
+        return chunk.getFirstAvailableAddress() <= realAddress || flyweight.isNull() ? null : flyweight.asBean();
     }
 
     public void remove(final long address) {
@@ -63,16 +63,27 @@ public final class Slab<T> implements Iterable<T> {
         }
     }
 
-    public void compact() {
-        SlabStorageChunk lastChunk = storageChunks.get(storageChunks.size() - 1);
-        Iterator<SlabFlyweight<T>> iterator = new StorageChunkIterator(lastChunk, Direction.BACK);
-        while (iterator.hasNext() && canCompactToPreviousChunks(lastChunk)) {
-            compact(lastChunk, iterator.next());
-        }
-        if (lastChunk.size() == 0) {
-            lastChunk.destroy();
-            storageChunks.remove(lastChunk);
-            compact();
+    public void compact(SlabCompactionEventHandler eventHandler) {
+        if (storageChunks.size() > 1) {
+            SlabStorageChunk lastChunk = storageChunks.get(storageChunks.size() - 1);
+            Iterator<SlabFlyweight<T>> iterator = new StorageChunkIterator(lastChunk, Direction.BACK);
+            while (iterator.hasNext() && canCompactToPreviousChunks(lastChunk)) {
+                compact(eventHandler, lastChunk, iterator.next());
+            }
+            boolean continueCompaction = false;
+            try {
+                eventHandler.beforeCompactionOfStorage();
+                if (lastChunk.size() == 0) {
+                    lastChunk.destroy();
+                    storageChunks.remove(lastChunk);
+                    continueCompaction = true;
+                }
+            } finally {
+                eventHandler.afterCompactionOfStorage();
+            }
+            if (continueCompaction) {
+                compact(eventHandler);
+            }
         }
     }
 
@@ -93,11 +104,22 @@ public final class Slab<T> implements Iterable<T> {
         return storageChunks.size() > 1 && size - lastChunk.size() < ((storageChunks.size() - 1) * chunkSize / objectSize);
     }
 
-    private void compact(final SlabStorageChunk chunk, final SlabFlyweight<T> flyweight) {
-        long newAddress = addToStorage(flyweight.asBean());
-        addressStrategy.map(chunk.offsetAddress(flyweight.getMappedAddress()), newAddress);
-        chunk.decrementSize();
-        removeFromStorage(chunk, flyweight, flyweight.getMappedAddress());
+    private void compact(final SlabCompactionEventHandler eventHandler,
+                         final SlabStorageChunk chunk,
+                         final SlabFlyweight<T> flyweight) {
+        final long existingKey = chunk.offsetAddress(flyweight.getMappedAddress());
+        long newKey = -1;
+        try {
+            eventHandler.beforeCompactionMove(existingKey);
+            if (!flyweight.isNull()) {
+                long newAddress = addToStorage(flyweight.asBean());
+                newKey = addressStrategy.map(existingKey, newAddress);
+                chunk.decrementSize();
+                removeFromStorage(chunk, flyweight, flyweight.getMappedAddress());
+            }
+        } finally {
+            eventHandler.afterCompactionMove(existingKey, newKey);
+        }
     }
 
     private SlabStorageChunk storageFor(final long address) {
@@ -250,7 +272,7 @@ public final class Slab<T> implements Iterable<T> {
             ptr += direction.advancePtr(objectSize);
             SlabFlyweight<T> flyweight = factory.getInstance();
             flyweight.map(storage, ptr);
-            while (!direction.done(chunk, ptr) && flyweight.isNull(storage, ptr)) {
+            while (!direction.done(chunk, ptr) && flyweight.isNull()) {
                 ptr += direction.advancePtr(objectSize);
                 flyweight.map(storage, ptr);
             }

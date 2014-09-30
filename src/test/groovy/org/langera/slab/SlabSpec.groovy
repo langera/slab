@@ -19,6 +19,7 @@ class SlabSpec extends Specification {
     AddressStrategy addressStrategy
     SlabFlyweightFactory<Bean> factory = singletonFactory
     SlabStorageFactory<SimpleStorage> storageFactory
+    SlabCompactionEventHandler compactionEventHandler
     Bean bean
 
     @Subject
@@ -27,6 +28,7 @@ class SlabSpec extends Specification {
 
     def setup() {
         addressStrategy = Mock()
+        compactionEventHandler = Mock()
         bean = new SimpleBean([byteValue: 17, intValue: 19, longValue: 23L, intArrayValue: [29, 31, 37]])
         storageFactory = new SimpleStorageFactory()
         slab = new Slab<Bean>(storageFactory, STORAGE_CAPACITY, addressStrategy, factory)
@@ -82,9 +84,33 @@ class SlabSpec extends Specification {
         long keyToBeCompacted = slab.add(toBeCompacted)
         slab.remove(freeEntryKey)
     when:
-        slab.compact()
+        slab.compact(compactionEventHandler)
     then:
         1 * addressStrategy.map(keyToBeCompacted, freeEntryKey) >> keyToBeCompacted
+    }
+
+
+    def 'compact item invokes event handler'() {
+    given:
+        slab = new Slab<Bean>(storageFactory, 2 * 7, addressStrategy, factory)
+        addressStrategy.getKey(_) >> { params -> return params[0] }
+        addressStrategy.removeAddress(_) >> { params -> return params[0] }
+        Bean toBeCompacted = new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]])
+        slab.add(bean)
+        long freeEntryKey = slab.add(bean)
+        long keyToBeCompacted = slab.add(toBeCompacted)
+        slab.remove(freeEntryKey)
+        addressStrategy.map(keyToBeCompacted, freeEntryKey) >> 17
+    when:
+        slab.compact(compactionEventHandler)
+    then:
+        1 * compactionEventHandler.beforeCompactionMove(keyToBeCompacted)
+    then:
+        1 * compactionEventHandler.afterCompactionMove(keyToBeCompacted, 17)
+    then:
+        1 * compactionEventHandler.beforeCompactionOfStorage()
+    then:
+        1 * compactionEventHandler.afterCompactionOfStorage()
     }
 
     @Unroll
@@ -283,7 +309,7 @@ class SlabSpec extends Specification {
         slab.availableCapacity() == 3
         slab.iterator().collect { it.byteValue }  == [ 1, 3 ]
     when:
-        slab.compact()
+        slab.compact(compactionEventHandler)
     then:
         slab.size() == 2
         slab.availableCapacity() == 3
@@ -296,7 +322,7 @@ class SlabSpec extends Specification {
         slab = new Slab<Bean>(storageFactory, chunkSize, new DirectAddressStrategy(), factory)
         slab.add(new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]]))
         long keyToRemove = slab.add(new SimpleBean([byteValue: 2, intValue: 2, longValue: 2L, intArrayValue: [2, 2, 2]]))
-        slab.add(new SimpleBean([byteValue: 3, intValue: 3, longValue: 3L, intArrayValue: [3, 3, 3]]))
+        long keyToBeCompacted = slab.add(new SimpleBean([byteValue: 3, intValue: 3, longValue: 3L, intArrayValue: [3, 3, 3]]))
     when:
         slab.remove(keyToRemove)
     then:
@@ -305,12 +331,14 @@ class SlabSpec extends Specification {
         slab.iterator().collect { it.byteValue }  == [ 1, 3 ]
         slab.get(keyToRemove) == null
     when:
-        slab.compact()
+        slab.compact(compactionEventHandler)
     then:
         slab.size() == 2
         slab.availableCapacity() == expectedAfterCompact
         slab.iterator().collect { it.byteValue }  == [ 1, 3 ]
         slab.get(keyToRemove).byteValue == 3
+        1 * compactionEventHandler.beforeCompactionMove(keyToBeCompacted)
+        1 * compactionEventHandler.afterCompactionMove(keyToBeCompacted, keyToRemove)
     where:
         chunkSize | expectedAfterRemove | expectedAfterCompact
         14        | 2                   | 0
