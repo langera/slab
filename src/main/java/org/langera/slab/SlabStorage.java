@@ -32,11 +32,7 @@ public interface SlabStorage {
 
     int getIntArrayOffset(final int arraySize);
 
-    long getFirstAvailableAddress();
-
     long capacity();
-
-    void setFirstAvailableAddress(long address);
 
     void freeStorage();
 }

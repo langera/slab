@@ -76,15 +76,15 @@ class SlabSpec extends Specification {
         slab = new Slab<Bean>(storageFactory, 2 * 7, addressStrategy, factory)
         addressStrategy.getKey(_) >> { params -> return params[0] }
         addressStrategy.removeAddress(_) >> { params -> return params[0] }
-        Bean toMove = new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]])
+        Bean toBeCompacted = new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]])
         slab.add(bean)
         long freeEntryKey = slab.add(bean)
-        long keyToMove = slab.add(toMove)
+        long keyToBeCompacted = slab.add(toBeCompacted)
         slab.remove(freeEntryKey)
     when:
         slab.compact()
     then:
-        1 * addressStrategy.map(keyToMove, freeEntryKey) >> keyToMove
+        1 * addressStrategy.map(keyToBeCompacted, freeEntryKey) >> keyToBeCompacted
     }
 
     @Unroll

@@ -5,8 +5,6 @@ import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
 
-import static java.lang.Math.max;
-
 public class DirectMemoryStorage implements SlabStorage {
 
     private static final int BYTE_OFFSET = 1;
@@ -31,12 +29,10 @@ public class DirectMemoryStorage implements SlabStorage {
 
     private final long address;
     private final long capacity;
-    private long ptr;
 
     public DirectMemoryStorage(final long capacity) {
         this.capacity = capacity;
         address = unsafe.allocateMemory(capacity);
-        ptr = 0;
     }
 
     @Override
@@ -62,9 +58,7 @@ public class DirectMemoryStorage implements SlabStorage {
     @Override
     public long setByte(final byte value, final long offset) {
         unsafe.putByte(address + offset, value);
-        final long nextAddress = offset + BYTE_OFFSET;
-        ptr = max(ptr, nextAddress);
-        return nextAddress;
+        return offset + BYTE_OFFSET;
     }
 
     @Override
@@ -80,9 +74,7 @@ public class DirectMemoryStorage implements SlabStorage {
     @Override
     public long setInt(final int value, final long offset) {
         unsafe.putInt(address + offset, value);
-        final long nextAddress = offset + INT_OFFSET;
-        ptr = max(ptr, nextAddress);
-        return nextAddress;
+        return offset + INT_OFFSET;
     }
 
     @Override
@@ -98,9 +90,7 @@ public class DirectMemoryStorage implements SlabStorage {
     @Override
     public long setLong(final long value, final long offset) {
         unsafe.putLong(address + offset, value);
-        final long nextAddress = offset + LONG_OFFSET;
-        ptr = max(ptr, nextAddress);
-        return nextAddress;
+        return offset + LONG_OFFSET;
     }
 
     @Override
@@ -119,26 +109,13 @@ public class DirectMemoryStorage implements SlabStorage {
     public long setIntArray(final int[] values, final long offset) {
         long bytesToCopy = values.length << INT_OFFSET_POWER_OF_TWO;
         unsafe.copyMemory(values, intArrayOffset, null, address + offset, bytesToCopy);
-        final long nextAddress = offset + bytesToCopy;
-        ptr = max(ptr, nextAddress);
-        return nextAddress;
+        return offset + bytesToCopy;
     }
 
     @Override
     public int getIntArrayOffset(final int arraySize) {
         return arraySize << INT_OFFSET_POWER_OF_TWO;
     }
-
-    @Override
-    public long getFirstAvailableAddress() {
-        return ptr;
-    }
-
-    @Override
-    public void setFirstAvailableAddress(final long offset) {
-        ptr = offset;
-    }
-
 
     @Override
     public long capacity() {
