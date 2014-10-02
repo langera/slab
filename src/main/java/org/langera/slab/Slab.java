@@ -14,13 +14,16 @@ public final class Slab<T> implements Iterable<T> {
     private final long chunkSize;
     private final SlabStorageFactory storageFactory;
 
-    private List<SlabStorageChunk> storageChunks;   // TODO CopyOnWriteArrayList
-    private long size = 0;                          // TODO AtomicLong
+    private List<SlabStorageChunk> storageChunks;
+    private long size = 0;
 
     public Slab(final SlabStorageFactory storageFactory,
                 final long chunkSize,
                 final AddressStrategy addressStrategy,
                 final SlabFlyweightFactory<T> factory) {
+        if (!storageFactory.supportsCapacity(chunkSize)) {
+            throw new IllegalArgumentException("SlabStorage type does not support capacity [" + chunkSize + "]");
+        }
         this.storageFactory = storageFactory;
         this.chunkSize = chunkSize;
         this.addressStrategy = addressStrategy;
@@ -286,9 +289,9 @@ public final class Slab<T> implements Iterable<T> {
         private final long offset;
         private final SlabStorage storage;
 
-        private long size;  // TODO
-        private long freeListIndex; // TODO
-        private long ptr; // TODO
+        private long size;
+        private long freeListIndex;
+        private long ptr;
 
         SlabStorageChunk(SlabStorageFactory factory, final long capacity, final long offset) {
             this.offset = offset;

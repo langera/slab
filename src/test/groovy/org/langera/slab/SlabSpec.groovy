@@ -345,6 +345,16 @@ class SlabSpec extends Specification {
         7         | 1                   | 0
     }
 
+    def 'Throws IllegalArgumentException if chunk size exceeds storage capacity'() {
+    given:
+        storageFactory = Mock()
+    when:
+        new Slab<Bean>(storageFactory, 1000000000L, addressStrategy, factory)
+    then:
+        1 * storageFactory.supportsCapacity(1000000000L) >> false
+        thrown IllegalArgumentException
+    }
+
     private static class NewInstanceFactory implements SlabFlyweightFactory<Bean> {
 
         @Override

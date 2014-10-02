@@ -321,6 +321,7 @@ class SimpleStorage implements SlabStorage {
         store = new Object[0];
     }
 
+
     @Override
     String toString() {
         Arrays.toString(store)

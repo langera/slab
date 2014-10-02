@@ -2,6 +2,10 @@ package org.langera.slab;
 
 public interface SlabStorage {
 
+    long capacity();
+
+    void freeStorage();
+
     boolean getBoolean(final long address);
 
     long setBoolean(final boolean value, final long address);
@@ -97,8 +101,4 @@ public interface SlabStorage {
     long setDoubleArray(final double[] value, final long address);
 
     int getDoubleArrayOffset(final int arraySize);
-
-    long capacity();
-
-    void freeStorage();
 }
