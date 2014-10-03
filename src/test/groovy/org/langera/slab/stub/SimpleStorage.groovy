@@ -321,6 +321,10 @@ class SimpleStorage implements SlabStorage {
         store = new Object[0];
     }
 
+    @Override
+    boolean isDirect() {
+        return false
+    }
 
     @Override
     String toString() {

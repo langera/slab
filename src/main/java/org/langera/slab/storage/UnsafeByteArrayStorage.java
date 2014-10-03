@@ -341,4 +341,9 @@ public class UnsafeByteArrayStorage  implements SlabStorage {
 
     @Override
     public void freeStorage() { }
+
+    @Override
+    public boolean isDirect() {
+        return false;
+    }
 }

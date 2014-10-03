@@ -341,4 +341,9 @@ public class DirectMemoryStorage implements SlabStorage {
     public void freeStorage() {
         UNSAFE.freeMemory(address);
     }
+
+    @Override
+    public boolean isDirect() {
+        return true;
+    }
 }

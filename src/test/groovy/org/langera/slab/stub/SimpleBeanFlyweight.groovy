@@ -5,8 +5,10 @@ import org.langera.slab.SlabStorage
 
 class SimpleBeanFlyweight implements SlabFlyweight<Bean>, Bean {
 
-    // we add a boolean as a null flag. If certain assumptions on the values exist (as unsigned)
-    // we can piggy back on those value for the null flag and reduce space.
+    // we add a boolean as a null flag.
+    // An alternative to this simple approach is to piggy back on any value that has certain assumptions
+    // that make some of its possible values illegal (such as an unsigned value)
+    // for the null flag and reduce space.
 
     private final int intArrayFixedSize;
 

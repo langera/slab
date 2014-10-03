@@ -346,4 +346,9 @@ public class ByteBufferStorage implements SlabStorage {
     public void freeStorage() {
         buffer.clear();
     }
+
+    @Override
+    public boolean isDirect() {
+        return buffer.isDirect();
+    }
 }

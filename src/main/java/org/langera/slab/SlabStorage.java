@@ -6,6 +6,8 @@ public interface SlabStorage {
 
     void freeStorage();
 
+    boolean isDirect();
+
     boolean getBoolean(final long address);
 
     long setBoolean(final boolean value, final long address);
