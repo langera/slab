@@ -37,6 +37,12 @@ public class BeanFlyweight extends AbstractSlabFlyweight<Bean> implements Bean {
     }
 
     @Override
+    public void setAsFreeAddress(final SlabStorage storage, final long address, final long nextFreeAddress) {
+        super.setAsFreeAddress(storage, address, nextFreeAddress);
+        storage.setInt(-1, address + myUnsignedIntOffset);  // piggy back on unsigned int to reduce memory for null flag
+    }
+
+    @Override
     public void dumpToStorage(final Bean bean, final SlabStorage storage, final long address) {
         long offset = storage.setInt(bean.getMyUnsignedInt(), address);
         offset = storage.setByte(bean.getMyByte(), offset);
