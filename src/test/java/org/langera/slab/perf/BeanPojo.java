@@ -1,5 +1,7 @@
 package org.langera.slab.perf;
 
+import java.util.Arrays;
+
 public class BeanPojo implements Bean {
 
     private byte myByte;
@@ -18,6 +20,16 @@ public class BeanPojo implements Bean {
         this.myDouble = myDouble;
         this.myLongArray = myLongArray;
         this.myCharArray = myCharArray;
+    }
+
+    public BeanPojo(final Bean other) {
+        this.myByte = other.getMyByte();
+        this.myUnsignedInt = other.getMyUnsignedInt();
+        this.myDouble = other.getMyDouble();
+        final long[] otherLongArray = other.getMyLongArray();
+        this.myLongArray = Arrays.copyOf(otherLongArray, otherLongArray.length);
+        final char[] otherCharArray = other.getMyCharArray();
+        this.myCharArray = Arrays.copyOf(otherCharArray, otherCharArray.length);
     }
 
     public byte getMyByte() {

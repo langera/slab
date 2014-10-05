@@ -73,18 +73,18 @@ public final class Slab<T> implements Iterable<T> {
             while (iterator.hasNext() && canCompactToPreviousChunks(lastChunk)) {
                 compact(eventHandler, lastChunk, iterator.next());
             }
-            boolean continueCompaction = false;
+            boolean lastChunkRemoved = false;
             try {
                 eventHandler.beforeCompactionOfStorage();
                 if (lastChunk.size() == 0) {
                     lastChunk.destroy();
                     storageChunks.remove(lastChunk);
-                    continueCompaction = true;
+                    lastChunkRemoved = true;
                 }
             } finally {
                 eventHandler.afterCompactionOfStorage();
             }
-            if (continueCompaction) {
+            if (lastChunkRemoved) {
                 compact(eventHandler);
             }
         }
@@ -93,6 +93,13 @@ public final class Slab<T> implements Iterable<T> {
     @Override
     public Iterator<T> iterator() {
         return new SlabIterator(Direction.FORWARD);
+    }
+
+    public void destroy() {
+        for (SlabStorageChunk chunk : storageChunks) {
+            chunk.destroy();
+        }
+        storageChunks.clear();
     }
 
     public long size() {
