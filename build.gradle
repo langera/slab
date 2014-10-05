@@ -3,43 +3,58 @@ apply plugin: "groovy"
 apply plugin: "idea"
 apply plugin: "maven"
 
-    task writeNewPom << {
-        pom {
-            project {
-                inceptionYear '2013'
-                scm {
-                    url = 'scm:https://github.com/langera/honey.git'
-                    connection = 'scm:https://github.com/langera/honey.git'
-                }
-                licenses {
-                    license {
-                        name 'The Apache Software License, Version 2.0'
-                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                        distribution 'repo'
-                    }
-                }
-                developers {
-                    developer {
-                        id = 'langera'
-                        name = 'Amir Langer'
-                        email = 'langera@gmail.com'
-                    }
+task writeNewPom << {
+    pom {
+        project {
+            inceptionYear '2014'
+            scm {
+                url = 'scm:https://github.com/langera/slab.git'
+                connection = 'scm:https://github.com/langera/slab.git'
+            }
+            licenses {
+                license {
+                    name 'The Apache Software License, Version 2.0'
+                    url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    distribution 'repo'
                 }
             }
-        }.writeTo("$buildDir/pom.xml")
-    }
-
-    repositories {
-        mavenCentral()
-        maven { url 'http://oss.sonatype.org/content/repositories/snapshots/' }
-    }
-
-    version = '0.1'
-    jar {
-        manifest {
-            attributes 'Implementation-Title': 'honey', 'Implementation-Version': version
+            developers {
+                developer {
+                    id = 'langera'
+                    name = 'Amir Langer'
+                    email = 'langera@gmail.com'
+                }
+            }
         }
+    }.writeTo("$buildDir/pom.xml")
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'http://oss.sonatype.org/content/repositories/snapshots/' }
+}
+
+version = '0.1'
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'slab', 'Implementation-Version': version
     }
+}
+
+test {
+    testLogging {
+        events "failed"
+        exceptionFormat "short"
+
+        debug {
+            events "started", "skipped", "failed"
+            exceptionFormat "full"
+        }
+
+        info.events = ["failed", "skipped", "passed"]
+    }
+
+}
 
 
 idea.project.ipr {
@@ -48,25 +63,27 @@ idea.project.ipr {
     }
 }
 
-def nonTransitive(Project... dependencies) {
-    def deps = dependencies.collect { project.dependencies.create(it) }
-    project.configure(deps, { transitive = false })
+dependencies {
+    groovy 'org.codehaus.groovy:groovy-all:2.1.7'
+    compile 'javassist:javassist:3.12.1.GA'
+    compile 'log4j:log4j:1.2.17'
+    testCompile 'org.spockframework:spock-core:0.7-groovy-2.0'
+    testCompile 'cglib:cglib-nodep:2.2'
+    testCompile 'org.objenesis:objenesis:1.2'
 }
 
-    dependencies {
-        groovy 'org.codehaus.groovy:groovy-all:2.1.7'
-        compile 'javassist:javassist:3.12.1.GA'
-        compile 'log4j:log4j:1.2.17'
-        testCompile 'org.spockframework:spock-core:0.7-groovy-2.0'
-        testCompile 'cglib:cglib-nodep:2.2'
-        testCompile 'org.objenesis:objenesis:1.2'
-        testCompile fileTree(dir: 'lib', include: '*.jar')
-    }
-
-    task(testPerf, dependsOn: 'testClasses', type: JavaExec) {
-        main 'org.langera.core.PerfTest'
-        jvmArgs '-Xmx4g', '-Xms4g', '-XX:MaxPermSize=128m'
-        classpath sourceSets.test.runtimeClasspath
+task(testPerfSlab, dependsOn: 'testClasses', type: JavaExec) {
+    main 'com.yahoo.slab.perf.SlabPerfTest'
+    jvmArgs '-Xmx220m'
+    args '-verbose'
+    classpath sourceSets.test.runtimeClasspath
 }
+
+task(testPerfStorage, dependsOn: 'testClasses', type: JavaExec) {
+    main 'com.yahoo.slab.perf.StoragePerfTest'
+    jvmArgs '-Xmx1g', '-Xms1g'
+    classpath sourceSets.test.runtimeClasspath
+}
+
 
 
