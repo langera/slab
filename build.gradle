@@ -74,7 +74,7 @@ dependencies {
 
 task(testPerfSlab, dependsOn: 'testClasses', type: JavaExec) {
     main 'com.yahoo.slab.perf.SlabPerfTest'
-    jvmArgs '-Xmx220m'
+    jvmArgs '-Xmx256m', '-Xms256m'
     args '-verbose'
     classpath sourceSets.test.runtimeClasspath
 }
