@@ -23,31 +23,33 @@ public class BeanFlyweight extends AbstractSlabFlyweight<Bean> implements Bean {
     @Override
     public void map(final SlabStorage storage, final long address) {
         super.map(storage, address);
-        this.myUnsignedIntOffset = 0;
-        this.myByteOffset = storage.getIntOffset();
-        this.myDoubleOffset= this.myByteOffset + storage.getByteOffset();
-        this.myLongArrayOffset= this.myDoubleOffset + storage.getDoubleOffset();
-        this.myCharArrayOffset= this.myLongArrayOffset + storage.getLongArrayOffset(myLongArrayFixedSize);
-        setFreeAddressOffset(this.myByteOffset);
+        this.myLongArrayOffset= 0;
+        this.myDoubleOffset= this.myLongArrayOffset + storage.getLongArrayOffset(myLongArrayFixedSize);
+        this.myUnsignedIntOffset = this.myDoubleOffset + storage.getDoubleOffset();
+        this.myByteOffset = this.myUnsignedIntOffset + storage.getIntOffset();
+        this.myCharArrayOffset= this.myByteOffset + storage.getByteOffset();
+        setFreeAddressOffset(this.myLongArrayOffset);
     }
 
     @Override
     public boolean isNull(final SlabStorage storage, final long address) {
-        return storage.getInt(address) < 0; // piggy back on unsigned int to reduce memory for null flag
+        int unsignedIntOffset = storage.getLongArrayOffset(myLongArrayFixedSize) + storage.getDoubleOffset();
+        return storage.getInt(address + unsignedIntOffset) < 0; // piggy back on unsigned int to reduce memory for null flag
     }
 
     @Override
     public void setAsFreeAddress(final SlabStorage storage, final long address, final long nextFreeAddress) {
         super.setAsFreeAddress(storage, address, nextFreeAddress);
-        storage.setInt(-1, address + myUnsignedIntOffset);  // piggy back on unsigned int to reduce memory for null flag
+        int unsignedIntOffset = storage.getLongArrayOffset(myLongArrayFixedSize) + storage.getDoubleOffset();
+        storage.setInt(-1, address + unsignedIntOffset);  // piggy back on unsigned int to reduce memory for null flag
     }
 
     @Override
     public void dumpToStorage(final Bean bean, final SlabStorage storage, final long address) {
-        long offset = storage.setInt(bean.getMyUnsignedInt(), address);
-        offset = storage.setByte(bean.getMyByte(), offset);
+        long offset = storage.setLongArray(bean.getMyLongArray(), address);
         offset = storage.setDouble(bean.getMyDouble(), offset);
-        offset = storage.setLongArray(bean.getMyLongArray(), offset);
+        offset = storage.setInt(bean.getMyUnsignedInt(), offset);
+        offset = storage.setByte(bean.getMyByte(), offset);
         storage.setCharArray(bean.getMyCharArray(), offset);
     }
 
