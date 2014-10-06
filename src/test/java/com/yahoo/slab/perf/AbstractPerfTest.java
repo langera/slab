@@ -12,6 +12,7 @@ import java.util.Map;
 
 public abstract class AbstractPerfTest {
 
+    private final String name;
     private final int warmups;
     private final int repititions;
     private final boolean verbose;
@@ -21,11 +22,12 @@ public abstract class AbstractPerfTest {
         this.warmups = warmups;
         int rep = defaultRepititions;
         boolean v = false;
-        for (String arg : args) {
+        name = args[0];
+        for (int i = 1; i < args.length; i++) {
+            final String arg = args[i];
             if (arg.matches("\\d+")) {
                 rep = Integer.parseInt(arg);
-            }
-            else if (arg.startsWith("-v")) {
+            } else if (arg.startsWith("-v")) {
                 v = true;
             }
         }
@@ -34,57 +36,38 @@ public abstract class AbstractPerfTest {
     }
 
     protected void runPerfTest() throws Exception {
-        Map<String, ResultsCollector> testCaseResults = new HashMap<>();
+        ResultsCollector resultsCollector = new ResultsCollector(name);
 
         for (int i = 0; i < warmups; i++) {
-            runTestCases(null);
+            runTestCases(new ResultsCollector("warmup"));
         }
         for (int i = 0; i < repititions; i++) {
-            runTestCases(testCaseResults);
+            runTestCases(resultsCollector);
         }
-        printResults(testCaseResults);
+        System.out.println(resultsCollector);
     }
 
-    private void printResults(final Map<String, ResultsCollector> testCaseResults) {
-        for (ResultsCollector resultsCollector : testCaseResults.values()) {
-            System.out.println(resultsCollector);
+    protected abstract PerfTestCase initPerfTestCases(final String name);
+
+    private void runTestCases(final ResultsCollector resultsCollector) throws Exception {
+        final PerfTestCase testCase = initPerfTestCases(name);
+        gc();
+
+        println("Test " + name);
+
+        try {
+            testCase.before();
+            testCase.test(resultsCollector);
+        } finally {
+            testCase.after();
         }
-    }
 
-    protected abstract Map<String, PerfTestCase> initPerfTestCases();
-
-    private void runTestCases(final Map<String, ResultsCollector> testCaseResults) throws Exception {
-        final Map<String, PerfTestCase> testCases = initPerfTestCases();
-        for (Map.Entry<String, PerfTestCase> testCase : testCases.entrySet()) {
-            gc();
-
-            final String name = testCase.getKey();
-            final PerfTestCase test = testCase.getValue();
-            final ResultsCollector result = (testCaseResults == null) ? new ResultsCollector(name) : getResultsCollector(testCaseResults, name);
-
-            println("Test " + name);
-
-            try {
-                test.before();
-                test.test(result);
-            } finally {
-                test.after();
-            }
-        }
     }
 
     private void println(final Object value) {
         if (verbose) {
             System.out.println(value);
         }
-    }
-
-    private ResultsCollector getResultsCollector(final Map<String, ResultsCollector> testCaseResults, final String name) {
-        ResultsCollector collector = testCaseResults.putIfAbsent(name, new ResultsCollector(name));
-        if (collector == null) {
-            collector = testCaseResults.get(name);
-        }
-        return collector;
     }
 
     protected interface PerfTestCase {
@@ -99,7 +82,7 @@ public abstract class AbstractPerfTest {
     protected static class ResultsCollector {
 
         private final String name;
-        private final Map<String, List<Double>> resultsInMillisByActionMap;
+        private final Map<String, List<Result>> resultsInMillisByActionMap;
         private long start, end;
 
         private ResultsCollector(final String name) {
@@ -113,22 +96,50 @@ public abstract class AbstractPerfTest {
 
         protected void end(String action, final int invocations) {
             end = System.nanoTime();
-            getResults(action).add((double) ((end - start) / invocations));
+            getResults(action).add(new Result((end - start), invocations));
             start();
         }
 
         @Override
         public String toString() {
-            return name + " " + resultsInMillisByActionMap + " nano sec. per action";
+            StringBuilder sb = new StringBuilder("\n").append(name).append(":");
+            for (Map.Entry<String, List<Result>> entry : resultsInMillisByActionMap.entrySet()) {
+                sb.append("\n\t").append(entry.getKey()).append(":");
+                for (Result result : entry.getValue()) {
+                    sb.append("\n\t\t").append(result);
+                }
+            }
+            return sb.toString();
         }
 
-        private List<Double> getResults(final String action) {
-            List<Double> results = resultsInMillisByActionMap.get(action);
+        private List<Result> getResults(final String action) {
+            List<Result> results = resultsInMillisByActionMap.get(action);
             if (results == null) {
                 results = new ArrayList<>();
                 resultsInMillisByActionMap.put(action, results);
             }
             return results;
+        }
+
+        private static final class Result {
+
+            private final long invocations;
+            private final long duration;
+            private final long totalMemory;
+            private final long freeMemory;
+
+            private Result(final long duration, final long invocations) {
+                this.duration = duration;
+                this.invocations = invocations;
+                this.totalMemory = Runtime.getRuntime().totalMemory();
+                this.freeMemory = Runtime.getRuntime().freeMemory();
+            }
+
+            @Override
+            public String toString() {
+                return String.format("Avg. duration %d ns. for %d invocations. Memory %d total, %d free",
+                        duration / invocations, invocations, totalMemory, freeMemory);
+            }
         }
     }
 
@@ -140,7 +151,7 @@ public abstract class AbstractPerfTest {
         while (!collectorsWereActiveSince(gcCountByName)) {
             System.gc();
 
-            println("GC Current State:"+ gcCountByName);
+            println("GC Current State:" + gcCountByName);
 
             for (GarbageCollectorMXBean gcBean : ManagementFactory.getGarbageCollectorMXBeans()) {
                 GcInfo gcInfo = ((com.sun.management.GarbageCollectorMXBean) gcBean).getLastGcInfo();

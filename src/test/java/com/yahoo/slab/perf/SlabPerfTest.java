@@ -7,15 +7,13 @@ import com.yahoo.slab.storage.Storages;
 
 import java.util.AbstractList;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class SlabPerfTest extends AbstractPerfTest {
 
     private static final int WARMUPS = 3;
     private static final int REPITITIONS = 5;
-    private static final int NUMBER_OF_ELEMENTS = 1 * 1000 * 1000;
+    private static final int NUMBER_OF_ELEMENTS = 2 * 1000 * 1000;
     private static final int CHUNK_SIZE = 500 * 1000;
 
     public static void main(String[] args) throws Exception {
@@ -27,15 +25,18 @@ public class SlabPerfTest extends AbstractPerfTest {
         super(args, WARMUPS, REPITITIONS);
     }
 
-    protected Map<String, PerfTestCase> initPerfTestCases() {
-        Map<String, AbstractPerfTest.PerfTestCase> testCases = new HashMap<>();
-        testCases.put("ArrayList",
-                      new SlabPerfTestCase(new ListToSlabLikeListAdapter()));
-        testCases.put("Slab - Heap",
-                      new SlabPerfTestCase(new SlabToListAdapter(Storages.StorageType.HEAP)));
-        testCases.put("Slab - OffHeap",
-                      new SlabPerfTestCase(new SlabToListAdapter(Storages.StorageType.DIRECT)));
-        return testCases;
+    @Override
+    protected PerfTestCase initPerfTestCases(final String name) {
+        switch (name) {
+            case "ArrayList":
+                return new SlabPerfTestCase(new ListToSlabLikeListAdapter());
+            case "Heap":
+                return new SlabPerfTestCase(new SlabToListAdapter(Storages.StorageType.HEAP));
+            case "OffHeap":
+                return new SlabPerfTestCase(new SlabToListAdapter(Storages.StorageType.DIRECT));
+            default:
+                throw new IllegalArgumentException(name + ". Can only support [ArrayList, Heap, OffHeap]");
+        }
     }
 
 
@@ -52,36 +53,28 @@ public class SlabPerfTest extends AbstractPerfTest {
         @Override
         public void test(ResultsCollector resultsCollector) {
             resultsCollector.start();
-            // add NUMBER_OF_ELEMENTS beans
-            for (int i = 0; i < NUMBER_OF_ELEMENTS/2; i++) {
-                bean.setMyUnsignedInt(i);
-                list.add(bean);
-            }
 
-            resultsCollector.end("add", NUMBER_OF_ELEMENTS/2);
-            // 100 x get all elements and match expectations (getMyUnsignedInt()).
-            for (int i = 0; i < 100; i++) {
-                for (int expected = 0; expected < NUMBER_OF_ELEMENTS/2; expected++) {
-                    getBean(expected);
-                }
-            }
-            resultsCollector.end("get", 100 * (NUMBER_OF_ELEMENTS/2));
+            addTheElements(resultsCollector);
 
-            // add NUMBER_OF_ELEMENTS beans
-            for (int i = 0; i < NUMBER_OF_ELEMENTS/2; i++) {
-                bean.setMyUnsignedInt(i);
-                list.add(bean);
-            }
+            getTheElements(resultsCollector);
+        }
 
-            resultsCollector.end("add", NUMBER_OF_ELEMENTS/2);
-
-            // 100 x get all elements and match expectations (getMyUnsignedInt()).
+        private void getTheElements(final ResultsCollector resultsCollector) {
             for (int i = 0; i < 100; i++) {
                 for (int expected = 0; expected < NUMBER_OF_ELEMENTS; expected++) {
                     getBean(expected);
                 }
             }
             resultsCollector.end("get", 100 * NUMBER_OF_ELEMENTS);
+        }
+
+        private void addTheElements(final ResultsCollector resultsCollector) {
+            for (int i = 0; i < NUMBER_OF_ELEMENTS; i++) {
+                bean.setMyUnsignedInt(i);
+                list.add(bean);
+            }
+
+            resultsCollector.end("add", NUMBER_OF_ELEMENTS);
         }
 
         private void getBean(final int expected) {
@@ -93,7 +86,8 @@ public class SlabPerfTest extends AbstractPerfTest {
         }
 
         @Override
-        public void before() { }
+        public void before() {
+        }
 
         @Override
         public void after() {
@@ -128,8 +122,7 @@ public class SlabPerfTest extends AbstractPerfTest {
 
         @Override
         public Bean get(final int index) {
-            final Bean bean = slab.get(index * objectSize);
-            return bean;
+            return slab.get(index * objectSize);
         }
 
         @Override
@@ -161,8 +154,7 @@ public class SlabPerfTest extends AbstractPerfTest {
 
         @Override
         public Bean get(final int index) {
-            final Bean bean = realList.get(index);
-            return bean;
+            return realList.get(index);
         }
 
         @Override

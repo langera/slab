@@ -72,18 +72,53 @@ dependencies {
     testCompile 'org.objenesis:objenesis:1.2'
 }
 
-task(testPerfSlab, dependsOn: 'testClasses', type: JavaExec) {
+task(testPerfSlab, dependsOn: ['testClasses', 'testPerfSlabHeap', 'testPerfSlabOffHeap', 'testPerfSlabArrayList']) { }
+
+task(testPerfSlabHeap, dependsOn: 'testClasses', type: JavaExec) {
     main 'com.yahoo.slab.perf.SlabPerfTest'
-    jvmArgs '-Xmx256m', '-Xms256m'
-    args '-verbose'
+    jvmArgs '-Xmx300m', '-Xms300m'
+    args 'Heap', '-verbose'
+    classpath sourceSets.test.runtimeClasspath
+}
+task(testPerfSlabOffHeap, dependsOn: 'testClasses', type: JavaExec) {
+    main 'com.yahoo.slab.perf.SlabPerfTest'
+    jvmArgs '-Xmx300m', '-Xms300m'
+    args 'OffHeap', '-verbose'
+    classpath sourceSets.test.runtimeClasspath
+}
+task(testPerfSlabArrayList, dependsOn: 'testClasses', type: JavaExec) {
+    main 'com.yahoo.slab.perf.SlabPerfTest'
+    jvmArgs '-Xmx300m', '-Xms300m'
+    args 'ArrayList', '-verbose'
     classpath sourceSets.test.runtimeClasspath
 }
 
-task(testPerfStorage, dependsOn: 'testClasses', type: JavaExec) {
+task(testPerfStorage, dependsOn: ['testClasses', 'testPerfStorageDirect', 'testPerfStorageDirectByteBuffer', 'testPerfStorageHeap', 'testPerfStorageHeapByteBuffer']) {
+}
+
+task(testPerfStorageDirect, dependsOn: 'testClasses', type: JavaExec) {
     main 'com.yahoo.slab.perf.StoragePerfTest'
     jvmArgs '-Xmx1g', '-Xms1g'
+    args 'Direct'
     classpath sourceSets.test.runtimeClasspath
 }
-
+task(testPerfStorageHeap, dependsOn: 'testClasses', type: JavaExec) {
+    main 'com.yahoo.slab.perf.StoragePerfTest'
+    jvmArgs '-Xmx1g', '-Xms1g'
+    args 'Heap'
+    classpath sourceSets.test.runtimeClasspath
+}
+task(testPerfStorageHeapByteBuffer, dependsOn: 'testClasses', type: JavaExec) {
+    main 'com.yahoo.slab.perf.StoragePerfTest'
+    jvmArgs '-Xmx1g', '-Xms1g'
+    args 'HeapByteBuffer'
+    classpath sourceSets.test.runtimeClasspath
+}
+task(testPerfStorageDirectByteBuffer, dependsOn: 'testClasses', type: JavaExec) {
+    main 'com.yahoo.slab.perf.StoragePerfTest'
+    jvmArgs '-Xmx1g', '-Xms1g'
+    args 'DirectByteBuffer'
+    classpath sourceSets.test.runtimeClasspath
+}
 
 

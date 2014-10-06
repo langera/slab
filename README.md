@@ -69,7 +69,7 @@ single move of an object inside the slab storage.
 
 
 
-### Code Example?
+### Code Example
       
                    
 *Your data type*
