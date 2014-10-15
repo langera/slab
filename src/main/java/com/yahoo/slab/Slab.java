@@ -1,5 +1,6 @@
 package com.yahoo.slab;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -7,11 +8,12 @@ import java.util.NoSuchElementException;
 
 public final class Slab<T> implements Iterable<T> {
 
-    public static final int INITIAL_CHUNKS_ARRAY_SIZE = 10;
+    public static final int INITIAL_CHUNKS_LIST_SIZE = 100;
     private final AddressStrategy addressStrategy;
     private final SlabFlyweightFactory<T> factory;
     private final int objectSize;
     private final long chunkSize;
+    private final long maximumCapacity;
     private final SlabStorageFactory storageFactory;
 
     private List<SlabStorageChunk> storageChunks;
@@ -21,14 +23,23 @@ public final class Slab<T> implements Iterable<T> {
                 final long chunkSize,
                 final AddressStrategy addressStrategy,
                 final SlabFlyweightFactory<T> factory) {
+        this(storageFactory, chunkSize, addressStrategy, factory, INITIAL_CHUNKS_LIST_SIZE);
+    }
+
+    public Slab(final SlabStorageFactory storageFactory,
+                final long chunkSize,
+                final AddressStrategy addressStrategy,
+                final SlabFlyweightFactory<T> factory,
+                final int initialChunksListSize) {
         if (!storageFactory.supportsCapacity(chunkSize)) {
             throw new IllegalArgumentException("SlabStorage type does not support capacity [" + chunkSize + "]");
         }
         this.storageFactory = storageFactory;
         this.chunkSize = chunkSize;
+        this.maximumCapacity = calculateMaximumCapacity();
         this.addressStrategy = addressStrategy;
         this.factory = factory;
-        this.storageChunks = new ArrayList<>(INITIAL_CHUNKS_ARRAY_SIZE);
+        this.storageChunks = new ArrayList<>(initialChunksListSize);
         this.storageChunks.add(new SlabStorageChunk(storageFactory, chunkSize, 0));
         this.objectSize = factory.getInstance().getStoredObjectSize(storageChunks.get(0).getStorage());
     }
@@ -36,6 +47,9 @@ public final class Slab<T> implements Iterable<T> {
     public long add(final T instance) {
         if (instance == null) {
             throw new IllegalArgumentException("Cannot add null");
+        }
+        if (size == maximumCapacity) {
+            throw new IndexOutOfBoundsException("Slab reached maximum capacity of [" + maximumCapacity + "]");
         }
         size++;
         long address = addToStorage(instance);
@@ -58,7 +72,7 @@ public final class Slab<T> implements Iterable<T> {
         final SlabStorageChunk chunk = storageFor(realAddress);
         realAddress = chunk.noOffsetAddress(realAddress);
         if (chunk.getFirstAvailableAddress() <= realAddress || flyweight.isNull(chunk.getStorage(), realAddress)) {
-            throw new ArrayIndexOutOfBoundsException("Address does not exist [" + address + "]");
+            throw new IndexOutOfBoundsException("Address does not exist [" + address + "]");
         } else {
             chunk.decrementSize();
             removeFromStorage(chunk, flyweight, realAddress);
@@ -110,6 +124,10 @@ public final class Slab<T> implements Iterable<T> {
         return (storageChunks.size() * chunkSize / objectSize) - size;
     }
 
+    public long maximumCapacity() {
+        return maximumCapacity;
+    }
+
     private boolean canCompactToPreviousChunks(final SlabStorageChunk lastChunk) {
         return storageChunks.size() > 1 && size - lastChunk.size() < ((storageChunks.size() - 1) * chunkSize / objectSize);
     }
@@ -134,8 +152,8 @@ public final class Slab<T> implements Iterable<T> {
 
     private SlabStorageChunk storageFor(final long address) {
         int index = (int) (address / chunkSize);
-        if (index >= storageChunks.size() || storageChunks.get(index) == null) {
-            throw new ArrayIndexOutOfBoundsException("Address does not exist [" + address + "]");
+        if (index < 0 || index >= storageChunks.size() || storageChunks.get(index) == null) {
+            throw new IndexOutOfBoundsException("Address does not exist [" + address + "]");
         }
         return storageChunks.get(index);
     }
@@ -181,6 +199,12 @@ public final class Slab<T> implements Iterable<T> {
             flyweight.setAsFreeAddress(chunk.getStorage(), address, chunk.getFreeListIndex());
             chunk.setFreeListIndex(address);
         }
+    }
+
+    private long calculateMaximumCapacity() {
+        BigInteger maximumChunksCanHold = BigInteger.valueOf(chunkSize).multiply(BigInteger.valueOf(Integer.MAX_VALUE));
+        return (maximumChunksCanHold.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) ?
+            Long.MAX_VALUE : maximumChunksCanHold.longValueExact();
     }
 
     private enum Direction {
@@ -314,7 +338,11 @@ public final class Slab<T> implements Iterable<T> {
         }
 
         long noOffsetAddress(long address) {
-            return address - offset;
+            final long noOffsetAddress = address - offset;
+            if (noOffsetAddress < 0) {
+                throw new IndexOutOfBoundsException("Address does not exist [" + address + "]");
+            }
+            return noOffsetAddress;
         }
 
         long getFreeListIndex() {

@@ -2,7 +2,6 @@ package com.yahoo.slab
 
 import com.yahoo.slab.flyweight.SingletonSlabFlyweightFactory
 import com.yahoo.slab.stub.*
-import org.langera.slab.stub.*
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Subject
@@ -355,6 +354,57 @@ class SlabSpec extends Specification {
         1 * storageFactory.supportsCapacity(1000000000L) >> false
         thrown IllegalArgumentException
     }
+
+    @Unroll
+    def 'Throws IndexOutOfBoundsException if address returned from addressStrategy is #returnedAddress'() {
+    when:
+        slab.get(-17)
+    then:
+        1 * addressStrategy.getAddress(-17) >> returnedAddress
+        thrown IndexOutOfBoundsException
+    where:
+        returnedAddress << [ -1, -35 ]
+    }
+
+    def 'Throws IndexOutOfBoundsException if adding overflows'() {
+    given:
+        SlabStorage storage = Mock()
+        storage.capacity() >> 0
+        storageFactory = Mock()
+        storageFactory.supportsCapacity(0) >> true
+        storageFactory.allocateStorage(0) >> storage
+        SlabFlyweight<Byte> slabFlyweight = Mock()
+        SlabFlyweightFactory<Byte> factory = Mock()
+        factory.getInstance() >>  slabFlyweight
+        slabFlyweight.getStoredObjectSize(_) >> 0
+        Byte myByte = Byte.valueOf((byte)0)
+        Slab<Byte> byteSlab = new Slab<Byte>(storageFactory, 0, addressStrategy, factory)
+    when:
+        byteSlab.add(myByte)
+    then:
+        thrown IndexOutOfBoundsException
+    }
+
+    @Unroll
+    def 'returns maximumCapacity for chunk size #chunkSize'() {
+    when:
+        storageFactory = Mock()
+        storageFactory.supportsCapacity(_) >> true
+        storageFactory.allocateStorage(_) >> new SimpleStorage(1)
+        slab = new Slab<Bean>(storageFactory, chunkSize.longValue(), addressStrategy, factory)
+    then:
+        slab.maximumCapacity() == maximumCapacity
+    where:
+        chunkSize              | maximumCapacity
+            0                  |  0
+            1                  |  Integer.MAX_VALUE
+            10                 |  Integer.MAX_VALUE * 10L
+            Integer.MAX_VALUE  |  (Integer.MAX_VALUE as Long) * (Integer.MAX_VALUE as Long)
+            Long.MAX_VALUE     |  Long.MAX_VALUE
+            Long.MAX_VALUE - 1 |  Long.MAX_VALUE
+
+    }
+
 
     private static class NewInstanceFactory implements SlabFlyweightFactory<Bean> {
 
