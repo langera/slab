@@ -21,11 +21,11 @@ This main features in slab are:
 
 ### Documentation
 
+[Introduction] (https://github.com/langera/slab/wiki/FAQ)
+
 [Getting Started] (https://github.com/langera/slab/wiki/Example-Code)
 
 [Performance Results] (https://github.com/langera/slab/wiki/Performance-Results)
-
-[FAQ] (https://github.com/langera/slab/wiki/FAQ)
 
 [Future Work] (https://github.com/langera/slab/wiki/Future-Work)
 
