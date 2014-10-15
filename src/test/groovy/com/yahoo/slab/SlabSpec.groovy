@@ -19,6 +19,7 @@ class SlabSpec extends Specification {
     AddressStrategy addressStrategy
     SlabFlyweightFactory<Bean> factory = singletonFactory
     SlabStorageFactory<SimpleStorage> storageFactory
+    SlabFlyweight<Byte> slabFlyweight
     SlabCompactionEventHandler compactionEventHandler
     Bean bean
 
@@ -27,6 +28,7 @@ class SlabSpec extends Specification {
 
 
     def setup() {
+        slabFlyweight = Mock()
         addressStrategy = Mock()
         compactionEventHandler = Mock()
         bean = new SimpleBean([byteValue: 17, intValue: 19, longValue: 23L, intArrayValue: [29, 31, 37]])
@@ -356,6 +358,30 @@ class SlabSpec extends Specification {
     }
 
     @Unroll
+    def 'Convert chunk size to nearest multiple of Bean size #objectSize for the storage type'() {
+    given:
+        SlabStorage storage = Mock()
+        storageFactory = Mock()
+        storageFactory.allocateStorage(0) >> storage
+        SlabFlyweight<Byte> slabFlyweight = Mock()
+        SlabFlyweightFactory<Byte> factory = Mock()
+        factory.getInstance() >>  slabFlyweight
+        slabFlyweight.getStoredObjectSize(storage) >> objectSize
+    when:
+        new Slab<Bean>(storageFactory, 1000000000L, addressStrategy, factory)
+    then:
+        1 * storageFactory.supportsCapacity(1000000000L) >> true
+        1 * storageFactory.allocateStorage(actualChunkSize) >> storage
+    where:
+        actualChunkSize | objectSize
+        1000000000L     | 1
+        1000000000L     | 2
+        999999999L      | 3
+        999999993L      | 17
+
+    }
+
+    @Unroll
     def 'Throws IndexOutOfBoundsException if address returned from addressStrategy is #returnedAddress'() {
     when:
         slab.get(-17)
@@ -373,10 +399,9 @@ class SlabSpec extends Specification {
         storageFactory = Mock()
         storageFactory.supportsCapacity(0) >> true
         storageFactory.allocateStorage(0) >> storage
-        SlabFlyweight<Byte> slabFlyweight = Mock()
         SlabFlyweightFactory<Byte> factory = Mock()
         factory.getInstance() >>  slabFlyweight
-        slabFlyweight.getStoredObjectSize(_) >> 0
+        slabFlyweight.getStoredObjectSize(_) >> 1
         Byte myByte = Byte.valueOf((byte)0)
         Slab<Byte> byteSlab = new Slab<Byte>(storageFactory, 0, addressStrategy, factory)
     when:
@@ -391,6 +416,9 @@ class SlabSpec extends Specification {
         storageFactory = Mock()
         storageFactory.supportsCapacity(_) >> true
         storageFactory.allocateStorage(_) >> new SimpleStorage(1)
+        SlabFlyweightFactory<Byte> factory = Mock()
+        factory.getInstance() >>  slabFlyweight
+        slabFlyweight.getStoredObjectSize(_) >> 1
         slab = new Slab<Bean>(storageFactory, chunkSize.longValue(), addressStrategy, factory)
     then:
         slab.maximumCapacity() == maximumCapacity

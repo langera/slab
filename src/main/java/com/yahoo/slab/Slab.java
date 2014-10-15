@@ -29,19 +29,19 @@ public final class Slab<T> implements Iterable<T> {
     public Slab(final SlabStorageFactory storageFactory,
                 final long chunkSize,
                 final AddressStrategy addressStrategy,
-                final SlabFlyweightFactory<T> factory,
+                final SlabFlyweightFactory<T> flyweightFactory,
                 final int initialChunksListSize) {
         if (!storageFactory.supportsCapacity(chunkSize)) {
             throw new IllegalArgumentException("SlabStorage type does not support capacity [" + chunkSize + "]");
         }
         this.storageFactory = storageFactory;
-        this.chunkSize = chunkSize;
+        this.objectSize = calculateObjectSize(storageFactory, flyweightFactory);
+        this.chunkSize = chunkSize - (chunkSize % objectSize);
         this.maximumCapacity = calculateMaximumCapacity();
         this.addressStrategy = addressStrategy;
-        this.factory = factory;
+        this.factory = flyweightFactory;
         this.storageChunks = new ArrayList<>(initialChunksListSize);
-        this.storageChunks.add(new SlabStorageChunk(storageFactory, chunkSize, 0));
-        this.objectSize = factory.getInstance().getStoredObjectSize(storageChunks.get(0).getStorage());
+        this.storageChunks.add(new SlabStorageChunk(storageFactory, this.chunkSize, 0));
     }
 
     public long add(final T instance) {
@@ -199,6 +199,13 @@ public final class Slab<T> implements Iterable<T> {
             flyweight.setAsFreeAddress(chunk.getStorage(), address, chunk.getFreeListIndex());
             chunk.setFreeListIndex(address);
         }
+    }
+
+    private int calculateObjectSize(final SlabStorageFactory storageFactory, final SlabFlyweightFactory<T> flyweightFactory) {
+        final SlabStorage tempStorage = storageFactory.allocateStorage(0);
+        final int objectSize = flyweightFactory.getInstance().getStoredObjectSize(tempStorage);
+        tempStorage.freeStorage();
+        return objectSize;
     }
 
     private long calculateMaximumCapacity() {
