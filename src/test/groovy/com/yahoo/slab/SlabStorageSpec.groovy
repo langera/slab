@@ -1,9 +1,9 @@
 package com.yahoo.slab
 
+import com.yahoo.slab.example.SimpleStorage
 import com.yahoo.slab.storage.ByteBufferStorage
 import com.yahoo.slab.storage.DirectMemoryStorage
 import com.yahoo.slab.storage.UnsafeByteArrayStorage
-import com.yahoo.slab.stub.SimpleStorage
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Subject

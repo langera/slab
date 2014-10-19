@@ -1,4 +1,4 @@
-package com.yahoo.slab.stub
+package com.yahoo.slab.example
 
 import com.yahoo.slab.SlabFlyweight
 import com.yahoo.slab.SlabStorage

@@ -1,7 +1,7 @@
 package com.yahoo.slab
 
+import com.yahoo.slab.example.*
 import com.yahoo.slab.flyweight.SingletonSlabFlyweightFactory
-import com.yahoo.slab.stub.*
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Subject

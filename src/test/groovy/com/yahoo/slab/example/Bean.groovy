@@ -1,4 +1,4 @@
-package com.yahoo.slab.stub
+package com.yahoo.slab.example
 
 public interface Bean {
 
