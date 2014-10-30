@@ -1,14 +1,14 @@
 slab
 ======
 
-Slab is a storage mechanism for a **"Simple Flat POJO"** == A Java object whose state contains ONLY 
-primitives or fixed size arrays of primitives.
+Slab is a simple storage mechanism for Java objects.
 
 Ideas borrowed from [Martin Thompson] (http://mechanical-sympathy.blogspot.co.uk/2012/10/compact-off-heap-structurestuples-in.html) blog and [Richard Warburton] (https://github.com/RichardWarburton/slab) slab project.
 
 Unlike references above, this slab's emphasis is on providing a simple Collection-like behaviour to a huge number of objects
 (> Integer.MAX_VALUE) with reasonable performance, flexible storage abstraction and memory efficient management.
 
+The only **limitation** it sets on the stored Java object is that its seralized content size **must** be fixed and known in advance.
 
 This main features in slab are:
 
