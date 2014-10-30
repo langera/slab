@@ -21,7 +21,9 @@ This main features in slab are:
 
 ### Documentation
 
-[Introduction] (https://github.com/langera/slab/wiki/FAQ)
+[Introduction] (https://github.com/langera/slab/wiki/Introduction)
+
+[FAQ] (https://github.com/langera/slab/wiki/FAQ)
 
 [Getting Started] (https://github.com/langera/slab/wiki/Example-Code)
 
