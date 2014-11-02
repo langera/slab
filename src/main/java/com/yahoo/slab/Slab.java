@@ -36,7 +36,7 @@ public final class Slab<T> implements Iterable<T> {
         }
         this.storageFactory = storageFactory;
         this.objectSize = calculateObjectSize(storageFactory, flyweightFactory);
-        this.chunkSize = chunkSize - (chunkSize % objectSize);
+        this.chunkSize = Math.max(objectSize, chunkSize - (chunkSize % objectSize));
         this.maximumCapacity = calculateMaximumCapacity();
         this.addressStrategy = addressStrategy;
         this.factory = flyweightFactory;
@@ -128,6 +128,14 @@ public final class Slab<T> implements Iterable<T> {
         return maximumCapacity;
     }
 
+    public long chunkSizeInBytes() {
+        return chunkSize;
+    }
+
+    public int chunkCapacity() {
+        return (int) (chunkSize / objectSize);
+    }
+
     private boolean canCompactToPreviousChunks(final SlabStorageChunk lastChunk) {
         return storageChunks.size() > 1 && size - lastChunk.size() < ((storageChunks.size() - 1) * chunkSize / objectSize);
     }
@@ -205,13 +213,17 @@ public final class Slab<T> implements Iterable<T> {
         final SlabStorage tempStorage = storageFactory.allocateStorage(0);
         final int objectSize = flyweightFactory.getInstance().getStoredObjectSize(tempStorage);
         tempStorage.freeStorage();
+        if (objectSize <= 0) {
+            throw new IllegalArgumentException("Object size must be a positive integer");
+        }
         return objectSize;
     }
 
     private long calculateMaximumCapacity() {
         BigInteger maximumChunksCanHold = BigInteger.valueOf(chunkSize).multiply(BigInteger.valueOf(Integer.MAX_VALUE));
-        return (maximumChunksCanHold.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) ?
+        final long maximumCapacityInBytes = (maximumChunksCanHold.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) ?
             Long.MAX_VALUE : maximumChunksCanHold.longValueExact();
+        return maximumCapacityInBytes / objectSize;
     }
 
     private enum Direction {
