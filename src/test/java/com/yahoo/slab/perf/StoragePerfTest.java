@@ -125,10 +125,10 @@ public class StoragePerfTest extends AbstractPerfTest {
         }
     }
 
-    private static class DirectAddressStrategy implements AddressStrategy {
+    private static class DirectAddressStrategy implements AddressStrategy<Bean> {
 
         @Override
-        public long getKey(final long address) {
+        public long createKey(final long address, final Bean instance) {
             return address;
         }
 

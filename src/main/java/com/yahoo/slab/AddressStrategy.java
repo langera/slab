@@ -1,8 +1,8 @@
 package com.yahoo.slab;
 
-public interface AddressStrategy {
+public interface AddressStrategy<T> {
 
-    long getKey(final long address);
+    long createKey(final long address, final T instance);
 
     long getAddress(final long key);
 

@@ -9,7 +9,7 @@ import java.util.NoSuchElementException;
 public final class Slab<T> implements Iterable<T> {
 
     public static final int INITIAL_CHUNKS_LIST_SIZE = 100;
-    private final AddressStrategy addressStrategy;
+    private final AddressStrategy<T> addressStrategy;
     private final SlabFlyweightFactory<T> factory;
     private final int objectSize;
     private final long chunkSize;
@@ -21,14 +21,14 @@ public final class Slab<T> implements Iterable<T> {
 
     public Slab(final SlabStorageFactory storageFactory,
                 final long chunkSize,
-                final AddressStrategy addressStrategy,
+                final AddressStrategy<T> addressStrategy,
                 final SlabFlyweightFactory<T> factory) {
         this(storageFactory, chunkSize, addressStrategy, factory, INITIAL_CHUNKS_LIST_SIZE);
     }
 
     public Slab(final SlabStorageFactory storageFactory,
                 final long chunkSize,
-                final AddressStrategy addressStrategy,
+                final AddressStrategy<T> addressStrategy,
                 final SlabFlyweightFactory<T> flyweightFactory,
                 final int initialChunksListSize) {
         if (!storageFactory.supportsCapacity(chunkSize)) {
@@ -53,7 +53,7 @@ public final class Slab<T> implements Iterable<T> {
         }
         size++;
         long address = addToStorage(instance);
-        return addressStrategy.getKey(address);
+        return addressStrategy.createKey(address, instance);
     }
 
     public T get(final long address) {

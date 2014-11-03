@@ -44,7 +44,7 @@ class SlabSpec extends Specification {
     when:
         long key = slab.add(bean)
     then:
-        1 * addressStrategy.getKey(_) >> 1000
+        1 * addressStrategy.createKey(_, bean) >> 1000
         slab.size() == 1
         key == 1000
     }
@@ -52,7 +52,7 @@ class SlabSpec extends Specification {
     def 'remove item from slab'() {
     given:
         long address
-        addressStrategy.getKey(_) >> { params -> address = params[0]; return 1000 }
+        addressStrategy.createKey(_, bean) >> { params -> address = params[0]; return 1000 }
         long key = slab.add(bean)
     when:
         slab.remove(key)
@@ -64,7 +64,7 @@ class SlabSpec extends Specification {
     def 'get item from slab'() {
     given:
         long address
-        addressStrategy.getKey(_) >> { params -> address = params[0]; return 1000 }
+        addressStrategy.createKey(_, bean) >> { params -> address = params[0]; return 1000 }
         long key = slab.add(bean)
     when:
         Bean retrieved = slab.get(key)
@@ -81,7 +81,7 @@ class SlabSpec extends Specification {
     def 'compact item maps old key to new address'() {
     given:
         slab = new Slab<Bean>(storageFactory, 2 * 7, addressStrategy, factory)
-        addressStrategy.getKey(_) >> { params -> return params[0] }
+        addressStrategy.createKey(_, _) >> { params -> return params[0] }
         addressStrategy.removeAddress(_) >> { params -> return params[0] }
         Bean toBeCompacted = new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]])
         slab.add(bean)
@@ -98,7 +98,7 @@ class SlabSpec extends Specification {
     def 'compact item invokes event handler'() {
     given:
         slab = new Slab<Bean>(storageFactory, 2 * 7, addressStrategy, factory)
-        addressStrategy.getKey(_) >> { params -> return params[0] }
+        addressStrategy.createKey(_, _) >> { params -> return params[0] }
         addressStrategy.removeAddress(_) >> { params -> return params[0] }
         Bean toBeCompacted = new SimpleBean([byteValue: 1, intValue: 1, longValue: 1L, intArrayValue: [1, 1, 1]])
         slab.add(bean)
@@ -448,10 +448,10 @@ class SlabSpec extends Specification {
         }
     }
 
-    private static class DirectAddressStrategy implements AddressStrategy {
+    private static class DirectAddressStrategy implements AddressStrategy<Bean> {
 
         @Override
-        public long getKey(final long address) {
+        public long createKey(final long address, Bean instance) {
             return address;
         }
 
