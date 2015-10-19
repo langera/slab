@@ -10,7 +10,7 @@ Unlike references above, this slab's emphasis is on providing a simple Collectio
 
 The only **limitation** it sets on the stored Java object is that its seralized content size **must** be fixed and known in advance.
 
-This main features in slab are:
+The main features in slab are:
 
 1. Basic Collection operations (`add`, `get`, `remove`, `iterator`, `size`) that work on long keys (Slab maximum size is `Long.MAX_VALUE`). 
 2. Abstraction of the underlying storage and its access. (No need to commit to either memory type, serialization protocol etc.)
