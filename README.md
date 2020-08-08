@@ -3,7 +3,7 @@ slab
 
 Slab is a simple storage mechanism for Java objects.
 
-Ideas borrowed from [Martin Thompson] (http://mechanical-sympathy.blogspot.co.uk/2012/10/compact-off-heap-structurestuples-in.html) blog and [Richard Warburton] (https://github.com/RichardWarburton/slab) slab project.
+Ideas borrowed from [Martin Thompson](http://mechanical-sympathy.blogspot.co.uk/2012/10/compact-off-heap-structurestuples-in.html) blog and [Richard Warburton](https://github.com/RichardWarburton/slab) slab project.
 
 Unlike references above, this slab's emphasis is on providing a simple Collection-like behaviour to a huge number of objects
 (> Integer.MAX_VALUE) with reasonable performance, flexible storage abstraction and memory efficient management.
@@ -21,15 +21,15 @@ The main features in slab are:
 
 ### Documentation
 
-[Introduction] (https://github.com/langera/slab/wiki/Introduction)
+[Introduction](https://github.com/langera/slab/wiki/Introduction)
 
-[FAQ] (https://github.com/langera/slab/wiki/FAQ)
+[FAQ](https://github.com/langera/slab/wiki/FAQ)
 
-[Getting Started] (https://github.com/langera/slab/wiki/Example-Code)
+[Getting Started](https://github.com/langera/slab/wiki/Example-Code)
 
-[Performance Results] (https://github.com/langera/slab/wiki/Performance-Results)
+[Performance Results](https://github.com/langera/slab/wiki/Performance-Results)
 
-[Future Work] (https://github.com/langera/slab/wiki/Future-Work)
+[Future Work](https://github.com/langera/slab/wiki/Future-Work)
 
     
     
